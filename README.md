@@ -1,32 +1,75 @@
-# React + TypeScript + Vite
+# Threat Intel Enrichment — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interfaz web de solo lectura que visualiza, de forma trazable, la cadena **indicador → entidad → técnica ATT&CK → evidencia** generada por el backend, con controles para que un analista acepte o rechace cada asociación propuesta por la IA.
 
-Currently, two official plugins are available:
+Proyecto del curso **Seminario de Seguridad de la Información 2026-2** — Escuela Colombiana de Ingeniería Julio Garavito.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+> Repo hermano: [`threat-intel-backend`](https://github.com/NEXO-FDSI/NEXO-BACKEND.git) — API que este frontend consume. Se ejecutan por separado, no como monorepo.
 
-## React Compiler
+## Contexto académico
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| | |
+|---|---|
+| Asignatura | Fundamentos de Seguridad de la Información |
+| Grupo | Grupo 2 |
+| Profesor | Diego Alexander López Correa |
+| Integrantes | Daniel Alexander Ahumada León · Daniel Ricardo Ruge Gómez · David Alejandro Patacón Henao · David Santiago Cajamarca Cadena |
 
-## Expanding the Oxlint configuration
+## Propósito
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+El diferenciador central del proyecto frente a plataformas comerciales de "SOC agéntico" (Cortex XSIAM, Sentinel, Falcon, etc.) no es automatizar más, sino **hacer auditable cada paso de la decisión**. Esta interfaz es la pieza que hace visible esa cadena de evidencia — es la razón por la que el prototipo necesita una vista web y no solo expone una API.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+Alcance deliberadamente acotado: interfaz de solo lectura + validación humana, **sin** autenticación multiusuario ni funciones de administración tipo SOC comercial.
+
+## Stack
+
+- React + TypeScript
+- Vite
+- Consumo de la API del backend vía `fetch`
+
+## Requisitos previos
+
+- Node.js (LTS)
+- El backend (`nexo-backend`) corriendo localmente o accesible por red
+
+## Instalación
+
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Variables de entorno
+
+Crear `.env.local` (no se versiona):
+
+```
+VITE_API_URL=http://localhost:8000
+```
+
+## Ejecución en desarrollo
+
+Con el backend corriendo en el puerto 8000:
+
+```bash
+npm run dev
+```
+
+Abre `http://localhost:5173`. Si la página muestra el estado de conexión con el backend correctamente, la integración entre ambos repos está funcionando.
+
+## Docker
+
+```bash
+docker build -t nexo-intel-frontend .
+docker run -p 8080:80 nexo-intel-frontend
+```
+
+Build multi-stage: compila con Node y sirve los estáticos con nginx.
+
+## Estructura del proyecto
+
+```
+src/
+├── App.tsx          # punto de entrada actual (health check contra el backend)
+├── components/       # (por definir) cadena indicador → entidad → técnica → evidencia
+└── ...
+```
