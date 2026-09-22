@@ -76,6 +76,97 @@ npm run dev                  # http://localhost:5173
 
 Si `VITE_API_URL` no está definida se usa `http://localhost:8000`.
 
+## Tutorial: probar el stack completo en local
+
+Levanta el backend con Docker y un Postgres local, sin Supabase, sin API key de OTX (la API pública responde sin clave, con límite de peticiones) y sin instalar Python 3.14. El repo del backend no se modifica: la configuración va por variables de entorno y el bundle de ATT&CK se monta desde fuera.
+
+Requisitos: Docker Desktop (o Docker Engine) corriendo y Node.js 24. Los comandos asumen los dos repos clonados lado a lado y se ejecutan desde la carpeta que los contiene:
+
+```
+carpeta-del-proyecto/
+├── NEXO-BACKEND/
+└── NEXO-FRONTEND/
+```
+
+> **Windows:** usa PowerShell y escribe `curl.exe` en lugar de `curl` (en PowerShell 5.1, `curl` es un alias de `Invoke-WebRequest`). En Git Bash, antepone `MSYS_NO_PATHCONV=1` al `docker run` que lleva `-v`, o Git Bash reescribe la ruta del contenedor.
+
+### 1. Backend (solo la primera vez)
+
+```bash
+# Bundle MITRE ATT&CK Enterprise 19.1 (~50 MB), fuera del repo del backend
+curl -L --create-dirs -o attck/enterprise-attack-19.1.json https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-19.1.json
+
+# Red y base de datos local
+docker network create nexo-net
+docker run -d --name nexo-pg --network nexo-net -e POSTGRES_PASSWORD=nexo -e POSTGRES_DB=nexo postgres:17-alpine
+
+# Imagen del backend (solo lee el repo)
+docker build -t nexo-backend-local ./NEXO-BACKEND
+
+# Migraciones. Si falla por conexión, Postgres aún está arrancando: espera unos segundos y repite
+docker run --rm --network nexo-net -e DATABASE_URL=postgresql+psycopg://postgres:nexo@nexo-pg:5432/nexo nexo-backend-local alembic upgrade head
+
+# API en :8000, con CORS para el frontend y el bundle montado
+docker run -d --name nexo-api --network nexo-net -p 8000:8000 -e DATABASE_URL=postgresql+psycopg://postgres:nexo@nexo-pg:5432/nexo -e CORS_ORIGINS=http://localhost:5173 -v "$(pwd)/attck:/app/data/attck:ro" nexo-backend-local
+
+# Debe responder {"status":"ok"}
+curl http://localhost:8000/health
+```
+
+Si tienen la API key de OTX, agréguenla al `docker run` de la API con `-e REPUTATION_API_KEY=<clave>`.
+
+Las siguientes veces basta con arrancar los contenedores existentes:
+
+```bash
+docker start nexo-pg nexo-api
+```
+
+### 2. Frontend
+
+```bash
+cd NEXO-FRONTEND
+npm install
+npm run dev
+```
+
+Abre <http://localhost:5173>. Arriba a la derecha debe aparecer **"API en línea"** en verde.
+
+### 3. Qué probar
+
+Debajo del formulario hay botones de ejemplo con los indicadores de los escenarios oficiales del backend (`data/test_dataset/scenarios.json`).
+
+| Prueba | Cómo | Resultado esperado |
+|---|---|---|
+| Amenaza conocida | Botón **WannaCry** → *Registrar indicador* | Entidad `wannacry`, confianza 90 %, 16 técnicas en 8 tácticas |
+| Indicador benigno | Botón **IP benigna** (`8.8.8.8`) | "Sin asociación" y la etapa de técnicas en "No se ejecuta"; en *Enriquecimiento* aparece *Whitelisted IP* |
+| Misma campaña | Botón **SUNBURST** (`ervsystem.com`) | Resuelve a `sunburst` si OTX conserva los pulses del escenario (los datos de OTX cambian con el tiempo) |
+| Validación humana | Pestaña **Validación** → *Aceptar* o *Rechazar* → *Registrar decisión* | La decisión entra al historial y el estado de la investigación cambia |
+| Formato inválido (422) | Tipo IP, valor `999.1.1.1` | "Datos inválidos" con el mensaje del backend |
+| Duplicado (409) | El hash de WannaCry en MAYÚSCULAS | Se abre la investigación que ya existía |
+| Error interno (500) | `docker stop nexo-pg`, registra una IP nueva y luego `docker start nexo-pg` | "Backend inaccesible", con la explicación del 500 sin cabeceras CORS |
+| Paso a paso | Desmarca *Analizar automáticamente* antes de registrar | Cada paso se ejecuta desde el stepper o desde su pestaña |
+| Persistencia | Recarga la página | El historial se conserva |
+| Responsive | DevTools (F12) → vista de dispositivo móvil | Una sola columna y sin scroll horizontal |
+
+El apartado *Análisis* del informe dice "no disponible" si Ollama no está corriendo: es el comportamiento esperado del backend, que genera el resto del informe igual. Para obtener la narrativa del LLM, sigan la sección de Ollama del README del backend.
+
+### 4. Pruebas automáticas
+
+```bash
+npm run coverage   # suite completa; falla si la cobertura baja del 90 %
+```
+
+### 5. Apagar y limpiar
+
+```bash
+docker rm -f nexo-api nexo-pg
+docker network rm nexo-net
+```
+
+### Alternativa: setup del backend con Supabase
+
+Si levantan el backend como indica su README (Supabase + `uvicorn`), lo único que necesita el frontend es que el `.env` del backend incluya `CORS_ORIGINS=http://localhost:5173`. Después basta con `npm run dev` aquí.
+
 ## Scripts
 
 | Script | Qué hace |
