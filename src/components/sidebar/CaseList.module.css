@@ -1,0 +1,117 @@
+.panel {
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+  color: var(--color-text-subtle);
+}
+
+.search:focus-within {
+  border-color: var(--color-info);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+
+.search input::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.empty {
+  padding: 1rem 0.25rem;
+  color: var(--color-text-subtle);
+  font-size: 0.9rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-panel-sunken);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--ease),
+    background-color var(--ease);
+}
+
+.item:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-panel-raised);
+}
+
+.item[aria-current='true'] {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-panel-sunken));
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.value {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  color: var(--color-entity);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.date {
+  flex-shrink: 0;
+  color: var(--color-text-subtle);
+  font-size: 0.76rem;
+}

@@ -1,0 +1,96 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.summary {
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+}
+
+.summary strong {
+  color: var(--color-text);
+}
+
+.summary .entity {
+  color: var(--color-entity);
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.tactic {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-panel-sunken);
+  overflow: hidden;
+}
+
+.tacticName {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(90deg, rgb(250 88 45 / 0.12), transparent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.count {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+}
+
+.techniques {
+  display: grid;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+}
+
+.technique {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background-color var(--ease);
+}
+
+.technique:hover {
+  background: var(--color-panel-raised);
+}
+
+.id {
+  color: var(--color-info);
+  font-size: 0.8rem;
+}
+
+.name {
+  font-size: 0.87rem;
+  line-height: 1.35;
+}
+
+.external {
+  color: var(--color-text-subtle);
+  opacity: 0;
+  transition: opacity var(--ease);
+}
+
+.technique:hover .external,
+.technique:focus-visible .external {
+  opacity: 1;
+}
