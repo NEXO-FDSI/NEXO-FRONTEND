@@ -2,9 +2,9 @@
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   gap: 1.25rem;
-  max-width: 1680px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: 1.75rem;
 }
 
 .sidebar {
@@ -36,7 +36,7 @@
   left: 1rem;
   z-index: calc(var(--z-header) + 1);
   padding: 0.6rem 1rem;
-  border-radius: var(--radius-sm);
+  border-radius: 980px;
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-weight: 600;

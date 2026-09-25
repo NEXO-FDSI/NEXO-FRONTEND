@@ -109,9 +109,9 @@
 }
 
 .input:focus-visible {
-  outline: none;
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 3px rgb(56 189 248 / 0.25);
 }
 
 .input[aria-invalid='true'] {

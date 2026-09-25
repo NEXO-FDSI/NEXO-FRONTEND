@@ -21,13 +21,13 @@
   gap: 0.25rem;
   padding: 0.9rem 1rem;
   border: 1px solid var(--color-border);
-  border-top: 2px solid var(--color-accent);
+  border-top: 1px solid var(--color-border);
   border-radius: var(--radius);
-  background: var(--color-panel-sunken);
+  background: var(--color-panel);
 }
 
 .number {
-  color: var(--color-accent);
+  color: var(--color-info);
   font-size: 0.8rem;
   font-weight: 600;
 }

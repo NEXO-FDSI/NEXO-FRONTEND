@@ -69,8 +69,8 @@
 
 .item[aria-current='true'] {
   border-color: var(--color-accent);
+  border-left: 3px solid var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 8%, var(--color-panel-sunken));
-  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 .row {

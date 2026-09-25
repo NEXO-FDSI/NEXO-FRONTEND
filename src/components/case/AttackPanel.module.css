@@ -37,7 +37,7 @@
   gap: 0.5rem;
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--color-border);
-  background: linear-gradient(90deg, rgb(250 88 45 / 0.12), transparent);
+  background: var(--color-panel-raised);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.05em;

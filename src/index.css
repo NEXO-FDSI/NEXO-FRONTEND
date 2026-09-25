@@ -1,44 +1,39 @@
-/*
- * Identidad visual NEXO: consola SOC oscura y sobria (referencia: Palo Alto Cortex),
- * acento naranja de marca, colores semánticos para estado y tipografía Fira.
- * Todo color, radio, sombra y duración sale de estos tokens.
- */
 :root {
-  --color-bg: #090d14;
-  --color-panel: #111826;
-  --color-panel-raised: #172033;
-  --color-panel-sunken: #0c121c;
-  --color-border: #243049;
-  --color-border-strong: #33415f;
+  --color-bg: #f5f5f7;
+  --color-panel: #ffffff;
+  --color-panel-raised: #f5f5f7;
+  --color-panel-sunken: #f5f5f7;
+  --color-border: #d6d6d6;
+  --color-border-strong: #707070;
 
-  --color-text: #e7ebf3;
-  --color-text-muted: #a3adc2;
-  --color-text-subtle: #8591a8;
+  --color-text: #1d1d1f;
+  --color-text-muted: #474747;
+  --color-text-subtle: #707070;
 
-  --color-accent: #fa582d;
-  --color-accent-hover: #ff7148;
-  --color-on-accent: #10131a;
-  --color-info: #38bdf8;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
-  --color-entity: #a78bfa;
+  --color-accent: #0071e3;
+  --color-accent-hover: #0066cc;
+  --color-on-accent: #ffffff;
+  --color-info: #0066cc;
+  --color-success: #03873a;
+  --color-warning: #ed6300;
+  --color-danger: #b42318;
+  --color-entity: #8668ff;
 
   --font-sans: 'Fira Sans', system-ui, 'Segoe UI', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, Consolas, monospace;
 
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 12px 32px -18px rgb(0 0 0 / 0.8);
+  --radius-sm: 10px;
+  --radius: 28px;
+  --radius-lg: 28px;
+  --shadow-panel: none;
   --ease: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --z-header: 20;
 
   --header-height: 60px;
   --sidebar-width: 380px;
 
-  color-scheme: dark;
-  font: 400 15px/1.55 var(--font-sans);
+  color-scheme: light;
+  font: 400 16px/1.47 var(--font-sans);
   color: var(--color-text);
   background: var(--color-bg);
   font-synthesis: none;
@@ -62,11 +57,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(1200px 480px at 70% -120px, rgb(250 88 45 / 0.07), transparent 70%),
-    radial-gradient(900px 420px at -10% 0, rgb(56 189 248 / 0.05), transparent 70%),
-    var(--color-bg);
-  background-attachment: fixed;
+  background: var(--color-bg);
 }
 
 h1,
@@ -82,13 +73,14 @@ h2,
 h3,
 h4 {
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   line-height: 1.25;
 }
 
 a {
   color: var(--color-info);
-  text-underline-offset: 3px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 code,
@@ -111,7 +103,7 @@ textarea {
 }
 
 ::selection {
-  background: rgb(250 88 45 / 0.35);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 .sr-only {
