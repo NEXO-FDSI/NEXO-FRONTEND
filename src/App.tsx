@@ -1,30 +1,40 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { CaseDetail } from './components/case/CaseDetail'
+import { KpiStrip } from './components/dashboard/KpiStrip'
+import { Welcome } from './components/dashboard/Welcome'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { TopBar } from './components/layout/TopBar'
+import { CaseList } from './components/sidebar/CaseList'
+import { IndicatorForm } from './components/sidebar/IndicatorForm'
+import { useInvestigations } from './state/InvestigationsContext'
+import { InvestigationsProvider } from './state/InvestigationsProvider'
+import styles from './App.module.css'
 
-function App() {
-  const [status, setStatus] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/health`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((data) => setStatus(data.status))
-      .catch((e) => setError(String(e.message ?? e)))
-  }, [])
-
+function Workspace() {
+  const { selected } = useInvestigations()
   return (
-    <>
-      <h1>NEXO</h1>
-      {error ? (
-        <p>Backend unreachable at {import.meta.env.VITE_API_URL}: {error}</p>
-      ) : (
-        <p>Backend status: {status ?? 'loading...'}</p>
-      )}
-    </>
+    <div className={styles.layout}>
+      <aside className={styles.sidebar} aria-label="Registro e historial de indicadores">
+        <IndicatorForm />
+        <CaseList />
+      </aside>
+      <main id="case-detail" className={styles.main} tabIndex={-1}>
+        <KpiStrip />
+        <ErrorBoundary key={selected?.indicator.id}>
+          {selected ? <CaseDetail key={selected.indicator.id} inv={selected} /> : <Welcome />}
+        </ErrorBoundary>
+      </main>
+    </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <InvestigationsProvider>
+      <a className={styles.skip} href="#case-detail">
+        Saltar al detalle de la investigación
+      </a>
+      <TopBar />
+      <Workspace />
+    </InvestigationsProvider>
+  )
+}

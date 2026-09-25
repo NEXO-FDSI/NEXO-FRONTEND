@@ -1,0 +1,43 @@
+.meter {
+  --tone: var(--color-text-subtle);
+  display: grid;
+  gap: 0.35rem;
+  min-width: 160px;
+}
+
+.alta {
+  --tone: var(--color-success);
+}
+.media {
+  --tone: var(--color-warning);
+}
+.baja {
+  --tone: var(--color-danger);
+}
+.nula {
+  --tone: var(--color-text-subtle);
+}
+
+.labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--tone);
+  font-weight: 500;
+}
+
+.track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-panel-sunken);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+  transition: width 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}

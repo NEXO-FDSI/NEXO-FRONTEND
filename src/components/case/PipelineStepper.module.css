@@ -1,0 +1,98 @@
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.step {
+  --tone: var(--color-text-subtle);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.65rem;
+  row-gap: 0.55rem;
+  align-items: start;
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-top: 2px solid var(--tone);
+  border-radius: var(--radius);
+  background: var(--color-panel-sunken);
+}
+
+.done {
+  --tone: var(--color-success);
+}
+.running {
+  --tone: var(--color-accent);
+}
+.failed {
+  --tone: var(--color-danger);
+}
+.ready {
+  --tone: var(--color-info);
+}
+.locked {
+  --tone: var(--color-border-strong);
+}
+
+.marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--tone);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.locked .marker {
+  color: var(--color-text-subtle);
+}
+
+.text {
+  display: grid;
+  min-width: 0;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.locked .label {
+  color: var(--color-text-muted);
+}
+
+.description {
+  color: var(--color-text-subtle);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.action {
+  grid-column: 1 / -1;
+}
+
+.action:empty {
+  display: none;
+}
+
+.action button {
+  width: 100%;
+}
+
+@media (max-width: 1280px) {
+  .stepper {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}

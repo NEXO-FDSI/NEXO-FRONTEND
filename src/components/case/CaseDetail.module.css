@@ -1,0 +1,89 @@
+.detail {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.identity {
+  display: grid;
+  gap: 0.55rem;
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.valueRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.meta div {
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.meta dt {
+  color: var(--color-text-subtle);
+}
+
+.meta dd {
+  margin: 0;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.notices {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.stepper {
+  margin-top: 1.1rem;
+}
+
+@media (max-width: 640px) {
+  .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+}
