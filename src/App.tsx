@@ -1,8 +1,7 @@
 import { ChevronRight, FolderSearch } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { CaseDetail } from './components/case/CaseDetail'
-import { KpiStrip } from './components/dashboard/KpiStrip'
-import { Welcome } from './components/dashboard/Welcome'
+import { Dashboard } from './components/dashboard/Dashboard'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { SideNav } from './components/layout/SideNav'
 import { TopBar } from './components/layout/TopBar'
@@ -57,12 +56,7 @@ function View({ route }: { route: Route }) {
     case 'investigacion':
       return <InvestigationPage id={route.id} />
     case 'panel':
-      return (
-        <>
-          <KpiStrip />
-          <Welcome />
-        </>
-      )
+      return <Dashboard />
   }
 }
 

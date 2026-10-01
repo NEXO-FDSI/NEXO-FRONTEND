@@ -161,7 +161,8 @@ describe('NEXO Intel', () => {
 
     await user.click(nav().getByRole('link', { name: /Panel/ }))
     const kpis = within(await screen.findByRole('region', { name: 'Resumen de investigaciones' }))
-    expect(kpis.getByText('Validados').previousSibling).toHaveTextContent('1')
+    expect(kpis.getByText('Críticas o altas').previousSibling).toHaveTextContent('1')
+    expect(kpis.getByText('Pendientes de validación').previousSibling).toHaveTextContent('0')
     expect(JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)[0].validations).toHaveLength(1)
     // Las fuentes del enriquecimiento se guardan (sin la respuesta cruda de OTX).
     const [guardada] = JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)
