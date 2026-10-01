@@ -5,8 +5,8 @@
  */
 
 // Espejo de MAX_INDICADORES_PULSE en app/correlation/service.py del backend: un pulse con
-// más indicadores es un volcado agregado y la correlación lo descarta. Aquí solo se
-// señala en pantalla para que el analista entienda la evidencia.
+// más indicadores es un volcado agregado: la correlación lo descarta y no cuenta como
+// evidencia. Aquí solo se usa para explicar en pantalla por qué OTX no aporta evidencia.
 export const MAX_INDICADORES_PULSE = 1000
 
 export interface OtxPulse {
@@ -16,7 +16,6 @@ export interface OtxPulse {
   indicatorCount: number | null
   tags: string[]
   malwareFamilies: string[]
-  masivo: boolean
 }
 
 export interface OtxValidation {
@@ -47,18 +46,16 @@ const strings = (values: unknown[]): string[] =>
 
 function toPulse(raw: unknown, index: number): OtxPulse {
   const pulse = asRecord(raw)
-  const indicatorCount = asNumber(pulse.indicator_count)
   return {
     id: asString(pulse.id) ?? `pulse-${index}`,
     name: asString(pulse.name) ?? '(pulse sin nombre)',
     created: asString(pulse.created),
-    indicatorCount,
+    indicatorCount: asNumber(pulse.indicator_count),
     tags: strings(asArray(pulse.tags)),
     // El backend acepta tanto {display_name} como el string suelto.
     malwareFamilies: strings(
       asArray(pulse.malware_families).map((f) => asRecord(f).display_name ?? f),
     ),
-    masivo: (indicatorCount ?? 0) > MAX_INDICADORES_PULSE,
   }
 }
 

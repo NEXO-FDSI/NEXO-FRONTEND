@@ -1,6 +1,6 @@
 import { ShieldQuestion } from 'lucide-react'
 import { formatDateTime } from '../../domain/format'
-import { MAX_INDICADORES_PULSE, type OtxPulse } from '../../domain/otx'
+import type { OtxPulse } from '../../domain/otx'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
 import { StepPrompt } from './StepPrompt'
@@ -37,11 +37,6 @@ function PulseRow({ pulse }: { pulse: OtxPulse }) {
       </td>
       <td className={styles.count}>
         <span className="mono">{pulse.indicatorCount?.toLocaleString('es-CO') ?? '—'}</span>
-        {pulse.masivo && (
-          <Badge tone="warning" title={`Más de ${MAX_INDICADORES_PULSE.toLocaleString('es-CO')} indicadores: la correlación lo descarta`}>
-            Volcado agregado
-          </Badge>
-        )}
       </td>
       <td>
         {pulse.malwareFamilies.length > 0 ? (
@@ -75,7 +70,10 @@ export function EnrichmentPanel({ inv, activity, onRun }: CasePanelProps) {
         icon={<ShieldQuestion />}
         title="Sin enriquecimiento todavía"
       >
-        <p>Consulta la reputación del indicador en AlienVault OTX. La respuesta queda en caché en el backend.</p>
+        <p>
+          Consulta el indicador en AlienVault OTX, ThreatFox y VirusTotal. Cada respuesta queda en caché en el
+          backend.
+        </p>
       </StepPrompt>
     )
   }
@@ -85,24 +83,12 @@ export function EnrichmentPanel({ inv, activity, onRun }: CasePanelProps) {
     <div className={styles.panel}>
       <dl className={styles.stats}>
         <div>
-          <dt>Evidencia</dt>
-          <dd>
-            <Badge tone={enrichment.tiene_evidencia ? 'accent' : 'neutral'}>
-              {enrichment.tiene_evidencia ? 'Sí, mencionado en OTX' : 'Sin menciones en OTX'}
-            </Badge>
-          </dd>
-        </div>
-        <div>
           <dt>Pulses que lo mencionan</dt>
           <dd className="mono">{resumen.pulseCount}</dd>
         </div>
         <div>
           <dt>Tipo en OTX</dt>
           <dd className="mono">{resumen.tipo ?? '—'}</dd>
-        </div>
-        <div>
-          <dt>Fuente</dt>
-          <dd className="mono">{enrichment.fuente}</dd>
         </div>
       </dl>
 

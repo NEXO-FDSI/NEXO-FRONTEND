@@ -102,6 +102,10 @@ describe('NEXO Intel', () => {
     expect(resumen.getByText('VirusTotal: 69 motores maliciosos, 0 sospechosos')).toBeInTheDocument()
     expect(resumen.getByText('VirusTotal concuerda: sus familias apuntan a wannacry.')).toBeInTheDocument()
     expect(resumen.getByRole('region', { name: 'Resumen de la IA' })).toHaveTextContent('ransomware gusano')
+    expect(resumen.getByRole('region', { name: 'Nivel de confianza' })).toHaveTextContent(
+      'Confianza altawannacry respaldada por 2 fuentes: AlienVault OTX y VirusTotal',
+    )
+    expect(resumen.queryByRole('region', { name: 'Contradicciones entre fuentes' })).not.toBeInTheDocument()
 
     // Análisis IA: cada cita resalta su bloque en el contexto enviado al modelo.
     await user.click(resumen.getByRole('button', { name: 'Ver análisis y trazabilidad' }))
@@ -121,19 +125,25 @@ describe('NEXO Intel', () => {
     expect(screen.getByText('0 afirmaciones descartadas')).toBeInTheDocument()
     expect(screen.getByText('Ver el prompt exacto')).toBeInTheDocument()
 
-    // Inteligencia: una tarjeta por fuente y el detalle de OTX (pulses, volcado descartado, tags).
+    // Inteligencia: una pestaña por fuente; se abre la primera con evidencia (OTX, con sus pulses).
     await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
-    expect(within(screen.getByRole('region', { name: 'VirusTotal' })).getByRole('img')).toHaveAccessibleName(
-      '69 de 71 motores maliciosos, 0 sospechosos',
-    )
+    expect(screen.getByRole('tab', { name: /Con evidencia.*AlienVault OTX/ })).toHaveAttribute('aria-selected', 'true')
     expect(within(screen.getByRole('region', { name: 'AlienVault OTX' })).getByText(/1 volcados masivos ignorados/)).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'ThreatFox' })).getByText(/no tiene registros de este indicador/)).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: /Pulses de OTX/ })
     expect(within(table).getByText('WannaCry Indicators')).toBeInTheDocument()
-    expect(within(table).getByText('Volcado agregado')).toBeInTheDocument()
+    expect(within(table).queryByText('Volcado agregado')).not.toBeInTheDocument()
     expect(within(table).getByText('+2 más')).toBeInTheDocument()
     expect(screen.getByText(/mostrando 2 de 50/)).toBeInTheDocument()
     expect(screen.queryByText(/Respuesta cruda de OTX/)).not.toBeInTheDocument()
+    // Evidencia normalizada de OTX: técnicas que cita y referencias (solo http/https).
+    expect(screen.getByRole('link', { name: 'T1486' })).toHaveAttribute('href', 'https://attack.mitre.org/techniques/T1486/')
+    expect(screen.getByRole('link', { name: /cisa\.gov/ })).toHaveAttribute('rel', 'noopener noreferrer nofollow')
+    await user.click(screen.getByRole('tab', { name: /VirusTotal/ }))
+    expect(within(screen.getByRole('region', { name: 'VirusTotal' })).getByRole('img')).toHaveAccessibleName(
+      '69 de 71 motores maliciosos, 0 sospechosos',
+    )
+    await user.click(screen.getByRole('tab', { name: /Sin evidencia.*ThreatFox/ }))
+    expect(within(screen.getByRole('region', { name: 'ThreatFox' })).getByText(/no tiene registros de este indicador/)).toBeInTheDocument()
 
     // ATT&CK: técnicas agrupadas por táctica en orden de kill chain.
     await user.click(screen.getByRole('tab', { name: /MITRE ATT&CK/ }))
@@ -146,10 +156,16 @@ describe('NEXO Intel', () => {
     // La IA destacó T1210: se marca con su motivo, sin cambiar la lista determinística.
     expect(screen.getByRole('link', { name: /T1210/ })).toHaveTextContent('destacada por el análisis')
     expect(screen.getByRole('link', { name: /T1486/ })).not.toHaveTextContent('IA')
+    // Procedencia: de qué fuentes sale cada técnica.
+    expect(screen.getByText(/Entidad respaldada por/)).toHaveTextContent('Entidad respaldada por OTX, VirusTotal.')
+    expect(screen.getByRole('link', { name: /T1486/ })).toHaveTextContent('Vía OTX, VirusTotal · citada por OTX')
+    expect(screen.getByRole('link', { name: /T1210/ })).toHaveTextContent('Vía OTX, VirusTotal')
 
     // Informe en Markdown, con la tabla y enlaces aislados.
     await user.click(screen.getByRole('tab', { name: /Informe/ }))
     expect(screen.getByRole('cell', { name: 'T1486' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'vía entidad: AlienVault OTX, VirusTotal; citada por AlienVault OTX' })).toBeInTheDocument()
+    expect(screen.getByText('Confianza alta')).toHaveAttribute('title', 'wannacry respaldada por 2 fuentes: AlienVault OTX y VirusTotal')
     expect(screen.getByRole('link', { name: 'ATT&CK' })).toHaveAttribute('rel', 'noopener noreferrer')
 
     // Validación humana desde el stepper.
@@ -209,9 +225,10 @@ describe('NEXO Intel', () => {
     await vi.waitFor(() => expect(enrichCalls()).toBe(2))
 
     await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
-    expect(within(screen.getByRole('region', { name: 'VirusTotal' })).getByText(/NO significa "sin evidencia"/)).toBeInTheDocument()
     expect(await screen.findByText('Whitelisted IP')).toBeInTheDocument()
     expect(screen.getByText('Ningún pulse de OTX menciona este indicador.')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /No verificado.*VirusTotal/ }))
+    expect(within(screen.getByRole('region', { name: 'VirusTotal' })).getByText(/NO significa "sin evidencia"/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /MITRE ATT&CK/ }))
     expect(screen.getByText('Sin técnicas atribuidas')).toBeInTheDocument()
@@ -292,6 +309,8 @@ describe('NEXO Intel', () => {
     const version = screen.getByLabelText('Versión')
     await user.selectOptions(version, '1')
     expect(screen.getByRole('cell', { name: 'T1486' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'vía entidad: AlienVault OTX, VirusTotal; citada por AlienVault OTX' })).toBeInTheDocument()
+    expect(screen.getByText('Confianza alta')).toHaveAttribute('title', 'wannacry respaldada por 2 fuentes: AlienVault OTX y VirusTotal')
 
     expect(screen.getByText('Informe #1')).toBeInTheDocument() // panel de validación, misma pestaña
   })

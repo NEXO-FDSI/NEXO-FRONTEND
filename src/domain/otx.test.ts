@@ -9,11 +9,10 @@ describe('summarizeOtx', () => {
     expect(summary.tipo).toBe('sha256')
     expect(summary.pulseCount).toBe(50)
     expect(summary.pulses).toHaveLength(2)
-    expect(summary.pulses[0]).toMatchObject({ indicatorCount: 288240, masivo: true, malwareFamilies: [] })
+    expect(summary.pulses[0]).toMatchObject({ indicatorCount: 288240, malwareFamilies: [] })
     expect(summary.pulses[1]).toMatchObject({
       name: 'WannaCry Indicators',
       indicatorCount: 42,
-      masivo: false,
       malwareFamilies: ['WannaCry'],
       tags: ['wannacry', 'ransomware'],
     })
@@ -49,7 +48,6 @@ describe('summarizeOtx', () => {
       indicatorCount: null,
       tags: [],
       malwareFamilies: [],
-      masivo: false,
     })
     expect(summary.pulses[1]).toMatchObject({ tags: ['ok'], malwareFamilies: ['Emotet', 'Lazarus'] })
   })

@@ -1,7 +1,9 @@
 import { ArrowRight, Sparkles } from 'lucide-react'
 import type { Concordancia } from '../../api/types'
 import type { Investigation } from '../../domain/investigation'
-import { latestMetadatos } from '../../domain/severity'
+import { latestMetadatos, NIVEL_CONFIANZA_LABEL } from '../../domain/severity'
+import { NIVEL_CONFIANZA_TONE } from '../tones'
+import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { EvidenceChain } from './EvidenceChain'
 import { SeverityBadge } from './Signals'
@@ -22,7 +24,12 @@ interface SummaryPanelProps {
 /** Lo esencial de un vistazo: qué tan grave, si las fuentes coinciden y qué dice la IA. */
 export function SummaryPanel({ inv, onOpenAnalysis }: SummaryPanelProps) {
   const meta = latestMetadatos(inv)
-  const comparables = meta?.concordancia.filter((c) => c.resultado !== 'no_comparable') ?? []
+  const contradicciones = meta?.contradicciones ?? []
+  // Una familia que apunta a otra entidad ya figura como contradicción: no se repite aquí.
+  const yaContradice = (fuente: string) =>
+    contradicciones.some((c) => c.tipo === 'entidad_distinta' && c.fuentes.includes(fuente))
+  const comparables =
+    meta?.concordancia.filter((c) => c.resultado !== 'no_comparable' && !yaContradice(c.fuente)) ?? []
   const resumenIA = meta?.ia.analisis?.resumen
 
   return (
@@ -43,6 +50,31 @@ export function SummaryPanel({ inv, onOpenAnalysis }: SummaryPanelProps) {
             </p>
           )}
         </section>
+
+        {meta?.confianza && (
+          <section className={styles.block} aria-label="Nivel de confianza">
+            <h3 className={styles.heading}>Nivel de confianza</h3>
+            <Badge tone={NIVEL_CONFIANZA_TONE[meta.confianza.nivel]}>{NIVEL_CONFIANZA_LABEL[meta.confianza.nivel]}</Badge>
+            <ul className={styles.reasons}>
+              {meta.confianza.motivos.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {contradicciones.length > 0 && (
+          <section className={styles.block} aria-label="Contradicciones entre fuentes">
+            <h3 className={styles.heading}>Contradicciones entre fuentes</h3>
+            <ul className={styles.reasons}>
+              {contradicciones.map((c) => (
+                <li key={c.detalle} className={styles.discrepa}>
+                  {c.detalle}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {comparables.length > 0 && (
           <section className={styles.block} aria-label="Concordancia entre fuentes">

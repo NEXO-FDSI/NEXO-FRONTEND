@@ -27,7 +27,16 @@ export const wannacryIndicator: IndicatorRead = {
   timestamp_ingesta: '2026-09-22T17:51:20.169333Z',
 }
 
-const sinResumen = { familias: [], etiquetas: [], detecciones: null, confianza: null, primera_vez: null, ultima_vez: null }
+const sinResumen = {
+  familias: [],
+  etiquetas: [],
+  detecciones: null,
+  confianza: null,
+  primera_vez: null,
+  ultima_vez: null,
+  tecnicas_attck: [],
+  referencias: [],
+}
 
 export const wannacryFuentes: FuenteEnriquecimiento[] = [
   {
@@ -41,6 +50,8 @@ export const wannacryFuentes: FuenteEnriquecimiento[] = [
       familias: ['WannaCry'],
       etiquetas: ['wannacry', 'ransomware'],
       detecciones: { pulses: 50, pulses_masivos: 1 },
+      tecnicas_attck: ['T1486'],
+      referencias: ['https://www.cisa.gov/news-events/alerts/2017/05/12/indicators-associated-wannacry-ransomware'],
       referencia_url: `https://otx.alienvault.com/indicator/file/${'24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c'}`,
     },
     error: null,
@@ -80,6 +91,7 @@ export const wannacryEnrichment: EnrichmentResponse = {
   indicator_id: 1,
   fuente: 'alienvault_otx',
   tiene_evidencia: true,
+  cobertura: 'completa',
   fuentes: wannacryFuentes,
   detalle: {
     indicator: WANNACRY_HASH,
@@ -110,7 +122,9 @@ export const wannacryEnrichment: EnrichmentResponse = {
 }
 
 export const WANNACRY_EVIDENCE =
-  "pulse_info.pulses[].malware_families[].display_name = 'WannaCry' (respaldado por 2 pulse(s); 1 pulse(s) masivo(s) descartado(s))"
+  "pulse_info.pulses[].malware_families[].display_name = 'WannaCry' (respaldado por 2 pulse(s); 1 pulse(s) masivo(s) descartado(s)); VirusTotal familias = 'wannacry'"
+
+const PROCEDENCIA = ['alienvault_otx', 'virustotal']
 
 export const wannacryCorrelation: CorrelationResponse = {
   indicator_id: 1,
@@ -118,29 +132,37 @@ export const wannacryCorrelation: CorrelationResponse = {
   entity: { id: 1, nombre: 'wannacry', tipo: 'malware' },
   confianza: 0.9,
   evidencia: WANNACRY_EVIDENCE,
+  fuentes: PROCEDENCIA,
   tecnicas: [
-    { id: 'T1210', nombre: 'Exploitation of Remote Services', tactica: 'Lateral Movement' },
-    { id: 'T1489', nombre: 'Service Stop', tactica: 'Impact' },
-    { id: 'T1486', nombre: 'Data Encrypted for Impact', tactica: 'Impact' },
+    { id: 'T1210', nombre: 'Exploitation of Remote Services', tactica: 'Lateral Movement', fuentes: PROCEDENCIA, reportada_por: [] },
+    { id: 'T1489', nombre: 'Service Stop', tactica: 'Impact', fuentes: PROCEDENCIA, reportada_por: [] },
+    { id: 'T1486', nombre: 'Data Encrypted for Impact', tactica: 'Impact', fuentes: PROCEDENCIA, reportada_por: ['alienvault_otx'] },
   ],
 }
 
 export const WANNACRY_REPORT_MD = `# Informe de indicador: ${WANNACRY_HASH}
 
 **Tipo:** hash
-**Nivel de confianza:** 0.9
+**Nivel de confianza:** Alta — wannacry respaldada por 2 fuentes: AlienVault OTX y VirusTotal
+
+## Evidencia por fuente
+
+### Contradicciones
+
+Ninguna detectada entre las fuentes que respondieron.
 
 ## Resolución de entidad y técnicas ATT&CK
 
 - **Entidad asociada:** wannacry (malware)
+- **Respaldada por:** AlienVault OTX, VirusTotal
 - **Confianza de la asociación:** 0.9
 
 ### Técnicas documentadas
 
-| ID | Técnica | Táctica |
-|---|---|---|
-| T1210 | Exploitation of Remote Services | Lateral Movement |
-| T1486 | Data Encrypted for Impact | Impact |
+| ID | Técnica | Táctica | Procedencia |
+|---|---|---|---|
+| T1210 | Exploitation of Remote Services | Lateral Movement | vía entidad: AlienVault OTX, VirusTotal |
+| T1486 | Data Encrypted for Impact | Impact | vía entidad: AlienVault OTX, VirusTotal; citada por AlienVault OTX |
 
 ## Análisis
 
@@ -152,7 +174,11 @@ export const wannacryMetadatos: ReportMetadatos = {
     nivel: 'critica',
     motivos: ['asociado a wannacry con confianza 0.9', 'VirusTotal: 69 motores maliciosos, 0 sospechosos'],
   },
+  confianza: { nivel: 'alta', motivos: ['wannacry respaldada por 2 fuentes: AlienVault OTX y VirusTotal'] },
+  contradicciones: [],
+  cobertura: 'completa',
   concordancia: [
+    { fuente: 'alienvault_otx', etiqueta: 'AlienVault OTX', familias: ['WannaCry'], entidades: ['wannacry'], resultado: 'concuerda' },
     { fuente: 'threatfox', etiqueta: 'ThreatFox', familias: [], entidades: [], resultado: 'no_comparable' },
     {
       fuente: 'virustotal',
@@ -225,6 +251,7 @@ export const benignEnrichment: EnrichmentResponse = {
   indicator_id: 2,
   fuente: 'alienvault_otx',
   tiene_evidencia: false,
+  cobertura: 'parcial',
   fuentes: [
     {
       fuente: 'alienvault_otx',
