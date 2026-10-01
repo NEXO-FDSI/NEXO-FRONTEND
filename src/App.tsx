@@ -1,5 +1,6 @@
 import { ChevronRight, FolderSearch } from 'lucide-react'
-import type { MouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
+import type { ErrorInfo } from './api/http'
 import { CaseDetail } from './components/case/CaseDetail'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -8,6 +9,7 @@ import { TopBar } from './components/layout/TopBar'
 import { CaseList } from './components/sidebar/CaseList'
 import { IndicatorForm } from './components/sidebar/IndicatorForm'
 import { EmptyState } from './components/ui/EmptyState'
+import { Spinner } from './components/ui/Spinner'
 import { truncateMiddle } from './domain/format'
 import { rutas, useRoute, type Route } from './hooks/useRoute'
 import { useTheme } from './hooks/useTheme'
@@ -16,12 +18,37 @@ import { InvestigationsProvider } from './state/InvestigationsProvider'
 import styles from './App.module.css'
 
 function InvestigationPage({ id }: { id: number }) {
-  const inv = useInvestigations().items.find((i) => i.indicator.id === id)
+  const { items, load } = useInvestigations()
+  const inv = items.find((i) => i.indicator.id === id)
+  const local = inv !== undefined
+  // Si no está en este navegador, se reconstruye desde el backend (GET /indicators/{id}).
+  // El error se reinicia al cambiar de caso porque la página se monta con key={id}.
+  const [error, setError] = useState<ErrorInfo | null>(null)
+
+  useEffect(() => {
+    if (local) return
+    let active = true
+    void load(id).then((r) => {
+      if (active && !r.ok) setError(r.error)
+    })
+    return () => {
+      active = false
+    }
+  }, [id, local, load])
+
   if (!inv) {
+    if (!error) {
+      return (
+        <EmptyState icon={<Spinner size={20} />} title={`Cargando la investigación #${id} desde el backend…`} />
+      )
+    }
     return (
-      <EmptyState icon={<FolderSearch />} title={`La investigación #${id} no está en este navegador`}>
+      <EmptyState
+        icon={<FolderSearch />}
+        title={error.status === 404 ? `La investigación #${id} no existe en el backend` : 'No se pudo cargar la investigación'}
+      >
         <p>
-          El backend no expone consultas: solo se ven las investigaciones registradas desde este navegador.{' '}
+          {error.status === 404 ? 'Puede que la base de datos se haya reiniciado.' : error.message}{' '}
           <a href={rutas.investigaciones}>Ver investigaciones</a>
         </p>
       </EmptyState>
@@ -54,7 +81,7 @@ function View({ route }: { route: Route }) {
     case 'investigaciones':
       return <CaseList />
     case 'investigacion':
-      return <InvestigationPage id={route.id} />
+      return <InvestigationPage key={route.id} id={route.id} />
     case 'panel':
       return <Dashboard />
   }

@@ -25,7 +25,7 @@ interface Feedback {
 }
 
 export function IndicatorForm() {
-  const { register, items } = useInvestigations()
+  const { register, items, locate } = useInvestigations()
   const [tipo, setTipo] = useState<IndicatorTipo>('ip')
   const [valor, setValor] = useState('')
   const [fuente, setFuente] = useState('')
@@ -53,14 +53,16 @@ export function IndicatorForm() {
     }
 
     if (result.error.status === 409) {
-      const existing = findByInput(items, tipo, entrada)
-      if (existing) {
-        navigate(rutas.investigacion(existing.indicator.id))
+      // Primero el historial local (sin red); si no está, se busca por valor en el backend:
+      // la página del caso lo reconstruye con GET /indicators/{id}.
+      const existingId = findByInput(items, tipo, entrada)?.indicator.id ?? (await locate(tipo, entrada))
+      if (existingId !== null) {
+        navigate(rutas.investigacion(existingId))
       } else {
         setFeedback({
           tone: 'danger',
           title: 'El indicador ya existe en el backend.',
-          text: 'No está en el historial de este navegador y la API no permite consultarlo por valor.',
+          text: 'No se pudo recuperar su investigación: la búsqueda por valor en el backend no respondió.',
         })
       }
       return

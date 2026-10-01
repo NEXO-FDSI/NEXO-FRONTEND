@@ -180,6 +180,16 @@ export interface HealthResponse {
   status: string
 }
 
+/** GET /indicators/{id}: la investigación reconstruida desde lo persistido (solo lectura). */
+export interface InvestigationSnapshot {
+  indicator: IndicatorRead
+  enrichment: EnrichmentResponse | null
+  /** null si /correlate aún no se ejecutó. */
+  correlation: CorrelationResponse | null
+  reports: ReportRead[]
+  validations: ValidationRead[]
+}
+
 /** GET /status: qué fuentes y qué IA usará el pipeline. Sin secretos. */
 export interface StatusResponse {
   fuentes: { fuente: string; etiqueta: string; tipos: string[]; configurada: boolean }[]

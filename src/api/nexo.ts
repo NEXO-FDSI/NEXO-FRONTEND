@@ -6,6 +6,8 @@ import type {
   StatusResponse,
   IndicatorCreate,
   IndicatorRead,
+  IndicatorTipo,
+  InvestigationSnapshot,
   ReportRead,
   ValidationRead,
   ValidationRequest,
@@ -24,6 +26,15 @@ export const nexoApi = {
 
   createIndicator: (payload: IndicatorCreate) =>
     request<IndicatorRead>('POST', '/indicators', { body: payload }),
+
+  /** Lista de 0 o 1: el backend normaliza el valor igual que al registrar. */
+  findIndicator: (tipo: IndicatorTipo, valor: string) =>
+    request<IndicatorRead[]>('GET', `/indicators?${new URLSearchParams({ tipo, valor })}`),
+
+  listIndicators: (limit = 100) => request<IndicatorRead[]>('GET', `/indicators?limit=${limit}`),
+
+  getInvestigation: (indicatorId: number) =>
+    request<InvestigationSnapshot>('GET', `/indicators/${indicatorId}`),
 
   enrich: (indicatorId: number) =>
     request<EnrichmentResponse>('POST', `/indicators/${indicatorId}/enrich`),

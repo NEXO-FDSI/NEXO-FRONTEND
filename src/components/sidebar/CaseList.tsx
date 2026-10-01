@@ -2,6 +2,7 @@ import { ArrowRight, FolderSearch, Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import { formatDateTime, indicatorTypeLabel, truncateMiddle } from '../../domain/format'
 import { investigationStatus, STATUS_LABEL, type Investigation } from '../../domain/investigation'
+import { useBackendIndicators } from '../../hooks/useBackendIndicators'
 import { rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
@@ -20,10 +21,15 @@ function matches(inv: Investigation, query: string): boolean {
 
 export function CaseList() {
   const { items, activityOf, persisted } = useInvestigations()
+  const backend = useBackendIndicators()
   const [query, setQuery] = useState('')
   const searchId = useId()
   const q = query.trim().toLowerCase()
   const visible = q ? items.filter((inv) => matches(inv, q)) : items
+  const locales = new Set(items.map((inv) => inv.indicator.id))
+  const remotos = (backend ?? []).filter(
+    (ind) => !locales.has(ind.id) && (!q || ind.valor.toLowerCase().includes(q)),
+  )
 
   return (
     <Panel
@@ -104,6 +110,30 @@ export function CaseList() {
             )
           })}
         </ul>
+      )}
+      {remotos.length > 0 && (
+        <section className={styles.remote} aria-label="Registradas desde otros navegadores">
+          <h3 className={styles.remoteTitle}>Registradas desde otros navegadores ({remotos.length})</h3>
+          <p className={styles.empty}>Al abrirlas se reconstruyen desde el backend con sus informes y validaciones.</p>
+          <ul className={styles.list}>
+            {remotos.map((ind) => (
+              <li key={ind.id}>
+                <a className={styles.item} href={rutas.investigacion(ind.id)}>
+                  <span className={styles.row}>
+                    <span className={styles.type}>
+                      <IndicatorTypeIcon tipo={ind.tipo} size={14} />
+                      {indicatorTypeLabel(ind.tipo)} · #{ind.id}
+                    </span>
+                    <span className={styles.date}>{formatDateTime(ind.timestamp_ingesta)}</span>
+                  </span>
+                  <span className={`${styles.value} mono`} title={ind.valor}>
+                    {truncateMiddle(ind.valor, 34)}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </Panel>
   )

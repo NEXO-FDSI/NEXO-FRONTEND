@@ -18,13 +18,10 @@ ollama run qwen3:8b "ok"         # lo deja cargado en GPU
 cd nexo-intel-frontend; npm run dev   # http://localhost:5173
 ```
 
-> **Antes de empezar.** Estos indicadores **ya existen en Supabase**:
-> `24d004a1…1022c` (WannaCry SHA-256), `84.234.75.108`, `googledrive.network`,
-> `google.com`, `44d88612…`, `84c82835…`, `107d9fce…`. Si no están en el historial de
-> tu navegador, registrarlos da 409 y no se pueden abrir (limitación conocida: no hay
-> GET por valor). Los casos de abajo usan indicadores nuevos. Lo que registres queda
-> en Supabase: **prueba en el mismo navegador que usarás en la demo y no borres su
-> historial**.
+> **Antes de empezar.** Varios indicadores **ya existen en Supabase** (WannaCry
+> SHA-256, `84.234.75.108`, `googledrive.network`…). Registrarlos da 409 y la app abre
+> la investigación existente reconstruida desde el backend (Fase 1b). Investigaciones
+> también lista lo registrado desde otros navegadores.
 >
 > **VirusTotal permite 4 consultas por minuto.** Espera unos 20 s entre indicadores
 > nuevos, salvo en el caso D4.
@@ -35,7 +32,7 @@ cd nexo-intel-frontend; npm run dev   # http://localhost:5173
 |---|---|---|
 | A1 | Abrir `http://localhost:5173` | Tema oscuro. Cabecera: "API en línea" y "IA: groq · qwen/qwen3.8-27b" (al pasar el mouse: "Respaldo: ollama · qwen3:8b"). Sin historial: KPIs en 0 y "Cómo funciona NEXO" |
 | A2 | Botón sol/luna → recargar | Cambia a tema claro y lo conserva al recargar |
-| A3 | Abrir `#/investigaciones/999` | "La investigación #999 no está en este navegador" con enlace a la lista |
+| A3 | Abrir `#/investigaciones/999` | "Cargando…" y luego "La investigación #999 no existe en el backend", con enlace a la lista |
 | A4 | Navegar Panel → Investigaciones → un caso → botón Atrás del navegador | Vuelve a la vista anterior; cada caso tiene URL propia |
 | A5 | `http://localhost:8000/status` | Fuentes (OTX, ThreatFox, VirusTotal: `configurada: true`) e IA. Ninguna clave en la respuesta |
 
@@ -46,7 +43,8 @@ cd nexo-intel-frontend; npm run dev   # http://localhost:5173
 | B1 | Analizar indicador → pegar `hxxp://evil[.]example[.]com/payload` | Se selecciona **URL** solo |
 | B2 | Pegar `5ff465afaabcbf0150d1a3ab2c2e74f3a4426467` | Se selecciona **Hash** |
 | B3 | Tipo IP, valor `999.1.1.1`, Registrar | "Datos inválidos" con el motivo del backend; no se crea nada |
-| B4 | Registrar `24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c` | Si está en tu historial, abre su investigación; si no, "El indicador ya existe en el backend" |
+| B4 | Registrar `24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c` | Abre la investigación existente (del historial o reconstruida desde el backend con su informe) |
+| B5 | En una ventana privada, abrir `#/investigaciones` y luego `#/investigaciones/36` | La lista muestra "Registradas desde otros navegadores"; el #36 se carga desde el backend con entidad wannacry e informe |
 
 ## C. Pipeline completo (análisis automático activado)
 

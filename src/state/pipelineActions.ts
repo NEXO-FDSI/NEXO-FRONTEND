@@ -1,6 +1,6 @@
 import { toErrorInfo, type ErrorInfo } from '../api/http'
 import { nexoApi } from '../api/nexo'
-import type { IndicatorCreate, IndicatorRead, ValidationRequest } from '../api/types'
+import type { IndicatorCreate, IndicatorRead, IndicatorTipo, ValidationRequest } from '../api/types'
 import {
   AUTOMATIC_STEPS,
   isStepDone,
@@ -13,8 +13,14 @@ export type RegisterResult =
   | { ok: true; indicator: IndicatorRead }
   | { ok: false; error: ErrorInfo }
 
+export type LoadResult = { ok: true } | { ok: false; error: ErrorInfo }
+
 export interface PipelineActions {
   register(payload: IndicatorCreate, options: { autoRun: boolean }): Promise<RegisterResult>
+  /** Trae del backend la investigación completa (GET /indicators/{id}) y la guarda. */
+  load(indicatorId: number): Promise<LoadResult>
+  /** Id del indicador ya registrado con ese valor (GET /indicators?tipo&valor), o null. */
+  locate(tipo: IndicatorTipo, valor: string): Promise<number | null>
   runStep(indicatorId: number, step: AutomaticStep): Promise<boolean>
   runAutomatic(inv: Investigation): Promise<boolean>
   validate(indicatorId: number, reportId: number, request: ValidationRequest): Promise<boolean>
@@ -85,6 +91,23 @@ export function createPipelineActions(dispatch: (action: InvestigationsAction) =
       dispatch({ type: 'registered', indicator, entrada: payload.valor })
       if (autoRun) void runAutomatic(newInvestigation(indicator, payload.valor))
       return { ok: true, indicator }
+    },
+
+    async load(indicatorId) {
+      try {
+        dispatch({ type: 'loaded', snapshot: await nexoApi.getInvestigation(indicatorId) })
+        return { ok: true }
+      } catch (error) {
+        return { ok: false, error: toErrorInfo(error) }
+      }
+    },
+
+    async locate(tipo, valor) {
+      try {
+        return (await nexoApi.findIndicator(tipo, valor))[0]?.id ?? null
+      } catch {
+        return null
+      }
     },
 
     runStep: (indicatorId, step) => withLock(indicatorId, () => execute(indicatorId, step)),

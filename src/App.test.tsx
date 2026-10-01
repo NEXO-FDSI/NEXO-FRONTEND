@@ -420,10 +420,51 @@ describe('NEXO Intel', () => {
     expect(list().getByText('Ninguna investigación coincide con “zzz”.')).toBeInTheDocument()
   })
 
-  it('explica cuando la investigación de la URL no está en este navegador', async () => {
-    renderApp({}, [], '#/investigaciones/99')
-    expect(await screen.findByText('La investigación #99 no está en este navegador')).toBeInTheDocument()
+  it('si la investigación de la URL no está en el navegador la busca en el backend', async () => {
+    renderApp({}, [], '#/investigaciones/99') // GET /indicators/99 no declarado → 404
+    expect(await screen.findByText('La investigación #99 no existe en el backend')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver investigaciones' })).toHaveAttribute('href', '#/investigaciones')
+  })
+
+  it('recupera desde el backend lo registrado en otro navegador', async () => {
+    const snapshot = {
+      indicator: wannacryIndicator,
+      enrichment: wannacryEnrichment,
+      correlation: wannacryCorrelation,
+      reports: [wannacryReport],
+      validations: [acceptedValidation],
+    }
+    const { user, paths } = renderApp(
+      {
+        'POST /indicators': fail(409, 'El indicador ya existe'),
+        'GET /indicators': reply(200, [wannacryIndicator, benignIndicator]),
+        'GET /indicators/1': reply(200, snapshot),
+      },
+      [investigation({ indicator: benignIndicator, entrada: '8.8.8.8' })],
+      '#/investigaciones',
+    )
+
+    // La lista ofrece lo que está en el backend y no en este navegador.
+    const remotas = within(await screen.findByRole('region', { name: 'Registradas desde otros navegadores' }))
+    expect(remotas.getByText(/Hash · #1/)).toBeInTheDocument()
+    expect(remotas.queryByText(/IP · #2/)).not.toBeInTheDocument()
+
+    // 409 de un indicador que no está en el historial: se busca por valor y se abre.
+    await registerIndicator(user, 'Hash', WANNACRY_HASH)
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
+    expect(paths()).toContain('GET /indicators/1')
+    expect(window.location.hash).toBe('#/investigaciones/1')
+    // Reconstruida con su informe y la validación hecha en el otro navegador.
+    await user.click(screen.getByRole('tab', { name: /Informe y validación/ }))
+    expect(screen.getByText('Estado: Aceptado')).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!).map(
+      (i: Investigation) => i.indicator.id,
+    )).toEqual([1, 2])
+  })
+
+  it('informa si el backend no responde al cargar una investigación', async () => {
+    renderApp({ 'GET /indicators/7': new TypeError('Failed to fetch') }, [], '#/investigaciones/7')
+    expect(await screen.findByText('No se pudo cargar la investigación')).toBeInTheDocument()
   })
 
   it('muestra el avance de un paso en la lista mientras corre', async () => {
