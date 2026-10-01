@@ -75,3 +75,14 @@
 .danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-danger) 12%, transparent);
 }
+
+/* Confirmación de una acción irreversible: relleno sólido, solo dentro del diálogo. */
+.destructive {
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+  font-weight: 600;
+}
+
+.destructive:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 85%, var(--color-text));
+}

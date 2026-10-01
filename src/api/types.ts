@@ -68,6 +68,8 @@ export interface EnrichmentResponse {
   tiene_evidencia: boolean
   detalle: OtxDetalle
   fuentes: FuenteEnriquecimiento[]
+  /** false en GET /investigations: `detalle` viene recortado a lo que usa la interfaz. */
+  detalle_completo?: boolean
 }
 
 export interface EntityRef {
@@ -188,6 +190,22 @@ export interface InvestigationSnapshot {
   correlation: CorrelationResponse | null
   reports: ReportRead[]
   validations: ValidationRead[]
+}
+
+/** GET /investigations: todas las investigaciones, en páginas de hasta 10. */
+export interface InvestigationsPage {
+  items: InvestigationSnapshot[]
+  page: number
+  size: number
+  total: number
+  pages: number
+}
+
+/** DELETE /indicators/{id}: filas borradas por tabla en la eliminación en cascada. */
+export interface DeleteResponse {
+  indicator_id: number
+  valor: string
+  eliminados: Record<string, number>
 }
 
 /** GET /status: qué fuentes y qué IA usará el pipeline. Sin secretos. */

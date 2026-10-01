@@ -20,10 +20,16 @@ import {
   wannacrySnapshot,
 } from './test/fixtures'
 
-type Route = Reply | ((request: { body: unknown }) => Reply | Promise<Reply>)
+type Route = Reply | ((request: { body: unknown; query: URLSearchParams }) => Reply | Promise<Reply>)
+
+/** Snapshot mínimo de GET /indicators/{id}: la fusión es monotónica, así que no pisa lo local. */
+const soloIndicador = (indicator: typeof wannacryIndicator) =>
+  reply(200, { indicator, enrichment: null, correlation: null, reports: [], validations: [] })
 
 const WANNACRY_ROUTES: Record<string, Route> = {
   'GET /health': reply(200, { status: 'ok' }),
+  'GET /indicators/1': soloIndicador(wannacryIndicator),
+  'GET /indicators/2': soloIndicador(benignIndicator),
   'GET /status': reply(200, statusResponse),
   'POST /indicators': reply(201, wannacryIndicator),
   'POST /indicators/1/enrich': reply(200, wannacryEnrichment),
@@ -78,7 +84,7 @@ describe('NEXO Intel', () => {
     expect(chain().getByRole('meter', { name: 'Confianza de la asociación' })).toHaveAttribute('aria-valuenow', '90')
     expect(chain().getByText(/respaldado por 2 pulse/)).toBeInTheDocument()
     await vi.waitFor(() => expect(paths()).toContain('POST /indicators/1/report'))
-    expect(calls.find((c) => c.path === '/indicators')?.body).toEqual({
+    expect(calls.find((c) => c.method === 'POST' && c.path === '/indicators')?.body).toEqual({
       tipo: 'hash',
       valor: WANNACRY_HASH.toUpperCase(),
       fuente: null,
@@ -308,8 +314,7 @@ describe('NEXO Intel', () => {
     expect(paths()).toContain('POST /indicators/1/enrich')
   })
 
-  it('marca la investigación cuando el backend ya no la tiene y permite quitarla', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+  it('marca la investigación cuando el backend ya no la tiene', async () => {
     const { user } = renderApp(
       { 'POST /indicators/1/enrich': fail(404, 'Indicador no encontrado') },
       [investigation()],
@@ -330,15 +335,6 @@ describe('NEXO Intel', () => {
 
     await user.click(nav().getByRole('link', { name: /Investigaciones/ }))
     expect(await list().findByText('No existe en backend')).toBeInTheDocument()
-    await user.click(list().getByRole('link', { name: /Hash/ }))
-
-    await user.click(await screen.findByRole('button', { name: 'Quitar del historial' }))
-    expect(screen.getByText('Este indicador ya no existe en el backend')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Quitar del historial' }))
-    expect(confirm).toHaveBeenCalledTimes(2)
-    // Al quitarla se vuelve a la lista, ya vacía.
-    expect(await screen.findByText(/Aún no hay investigaciones/)).toBeInTheDocument()
-    expect(window.location.hash).toBe('#/investigaciones')
   })
 
   it('reporta los errores del registro de forma accionable', async () => {
@@ -426,7 +422,7 @@ describe('NEXO Intel', () => {
     expect(screen.getByRole('link', { name: 'Ver investigaciones' })).toHaveAttribute('href', '#/investigaciones')
   })
 
-  it('recupera desde el backend lo registrado en otro navegador', async () => {
+  it('muestra todas las investigaciones de la plataforma y depura lo que ya no existe', async () => {
     const snapshot = {
       indicator: wannacryIndicator,
       enrichment: wannacryEnrichment,
@@ -437,29 +433,117 @@ describe('NEXO Intel', () => {
     const { user, paths } = renderApp(
       {
         'POST /indicators': fail(409, 'El indicador ya existe'),
-        'GET /indicators': reply(200, [wannacryIndicator, benignIndicator]),
+        // La plataforma tiene solo el #2 (OTX recortado en el listado). La búsqueda por valor
+        // encuentra el #1, registrado en otra sesión después de sincronizar.
+        'GET /investigations': ({ query }) =>
+          reply(200, {
+            items:
+              query.get('page') === '1'
+                ? [{ indicator: benignIndicator, enrichment: { ...benignEnrichment, detalle_completo: false },
+                     correlation: unresolvedCorrelation, reports: [], validations: [] }]
+                : [],
+            page: Number(query.get('page')),
+            size: 10,
+            total: 1,
+            pages: 1,
+          }),
+        'GET /indicators': reply(200, [wannacryIndicator]),
         'GET /indicators/1': reply(200, snapshot),
       },
-      [investigation({ indicator: benignIndicator, entrada: '8.8.8.8' })],
+      [investigation()], // #1 en caché, pero el backend ya no lo lista: se depura
       '#/investigaciones',
     )
 
-    // La lista ofrece lo que está en el backend y no en este navegador.
-    const remotas = within(await screen.findByRole('region', { name: 'Registradas desde otros navegadores' }))
-    expect(remotas.getByText(/Hash · #1/)).toBeInTheDocument()
-    expect(remotas.queryByText(/IP · #2/)).not.toBeInTheDocument()
+    // Una sola lista con lo que hay en la plataforma: el #2 llegó en la página, el #1 se depuró.
+    expect(await list().findByText('8.8.8.8')).toBeInTheDocument()
+    await vi.waitFor(() => expect(list().queryByText(/Hash · #1/)).not.toBeInTheDocument())
+    expect(list().getByText('Sin asociación')).toBeInTheDocument()
+    expect(paths()).toContain('GET /investigations')
+    // El crudo recortado del listado no se guarda como si fuera la respuesta completa de OTX.
+    const [guardada] = JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)
+    expect(guardada.enrichment.resumen.validations).toHaveLength(2)
+    expect(screen.queryByRole('region', { name: 'Registradas desde otros navegadores' })).not.toBeInTheDocument()
 
-    // 409 de un indicador que no está en el historial: se busca por valor y se abre.
+    // 409 de un indicador que no está en caché: se busca por valor y se abre reconstruido.
     await registerIndicator(user, 'Hash', WANNACRY_HASH)
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
-    expect(paths()).toContain('GET /indicators/1')
     expect(window.location.hash).toBe('#/investigaciones/1')
-    // Reconstruida con su informe y la validación hecha en el otro navegador.
-    await user.click(screen.getByRole('tab', { name: /Informe y validación/ }))
+    await user.click(await screen.findByRole('tab', { name: /Informe y validación/ }))
     expect(screen.getByText('Estado: Aceptado')).toBeInTheDocument()
-    expect(JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!).map(
-      (i: Investigation) => i.indicator.id,
-    )).toEqual([1, 2])
+  })
+
+  it('avisa si no puede sincronizar y muestra lo que hay en caché', async () => {
+    renderApp({ 'GET /investigations': new TypeError('Failed to fetch') }, [investigation()], '#/investigaciones')
+    expect(await screen.findByText('No se pudo sincronizar con el backend')).toBeInTheDocument()
+    expect(list().getByText(/Hash · #1/)).toBeInTheDocument()
+  })
+
+  it('pagina la lista de investigaciones de a 10', async () => {
+    const muchas = Array.from({ length: 12 }, (_, i) =>
+      investigation({ indicator: { ...benignIndicator, id: 100 + i, valor: `10.0.0.${i}` }, entrada: `10.0.0.${i}` }),
+    )
+    const { user } = renderApp({}, muchas, '#/investigaciones')
+    const paginador = within(screen.getByRole('navigation', { name: 'Paginación de investigaciones' }))
+    expect(paginador.getByText('Página 1 de 2 · 12 investigaciones')).toBeInTheDocument()
+    expect(list().getAllByRole('link')).toHaveLength(10)
+    expect(paginador.getByRole('button', { name: /Anterior/ })).toBeDisabled()
+
+    await user.click(paginador.getByRole('button', { name: /Siguiente/ }))
+    expect(paginador.getByText('Página 2 de 2 · 12 investigaciones')).toBeInTheDocument()
+    expect(list().getAllByRole('link')).toHaveLength(2)
+    expect(paginador.getByRole('button', { name: /Siguiente/ })).toBeDisabled()
+
+    // Buscar vuelve a la primera página y el paginador desaparece si todo cabe en una.
+    await user.type(list().getByLabelText('Buscar investigaciones'), '10.0.0.1')
+    expect(screen.queryByRole('navigation', { name: 'Paginación de investigaciones' })).not.toBeInTheDocument()
+    expect(list().getAllByRole('link')).toHaveLength(3) // 10.0.0.1, .10 y .11
+  })
+
+  it('elimina el indicador del backend tras confirmar, y avisa si falla', async () => {
+    let intentos = 0
+    const { user, paths } = renderApp(
+      {
+        'DELETE /indicators/1': () =>
+          ++intentos === 1
+            ? fail(500, 'Error interno del servidor')
+            : reply(200, { indicator_id: 1, valor: WANNACRY_HASH, eliminados: { indicators: 1, reports: 1 } }),
+      },
+      [investigation({ reports: [wannacryReport] })],
+      '#/investigaciones/1',
+    )
+
+    // El diálogo detalla qué se borra; el foco arranca en Cancelar (lo seguro).
+    const abrir = await screen.findByRole('button', { name: 'Eliminar' })
+    await user.click(abrir)
+    const dialogo = within(screen.getByRole('alertdialog', { name: '¿Eliminar este indicador?' }))
+    expect(dialogo.getByText(/1 versión\(es\) del informe/)).toBeInTheDocument()
+    expect(dialogo.getByText(/se pierde ese historial de auditoría/)).toBeInTheDocument()
+    expect(dialogo.getByText('Esta acción no se puede deshacer.')).toBeInTheDocument()
+    expect(dialogo.getByRole('button', { name: 'Cancelar' })).toHaveFocus()
+
+    // El foco no sale del diálogo y Esc cancela sin tocar el backend; el foco vuelve al botón.
+    await user.tab()
+    expect(dialogo.getByRole('button', { name: 'Eliminar definitivamente' })).toHaveFocus()
+    await user.tab()
+    expect(dialogo.getByRole('button', { name: 'Cancelar' })).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(dialogo.getByRole('button', { name: 'Eliminar definitivamente' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(abrir).toHaveFocus()
+    expect(paths()).not.toContain('DELETE /indicators/1')
+
+    // Un fallo se informa dentro del diálogo, que sigue abierto; el caso sigue ahí.
+    await user.click(abrir)
+    await user.click(screen.getByRole('button', { name: 'Eliminar definitivamente' }))
+    expect(await within(screen.getByRole('alertdialog')).findByText('No se pudo eliminar el indicador')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
+
+    // Reintentar desde el mismo diálogo: elimina, vuelve a la lista y vacía el historial.
+    await user.click(screen.getByRole('button', { name: 'Eliminar definitivamente' }))
+    expect(await screen.findByText(/Aún no hay investigaciones/)).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/investigaciones')
+    expect(JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)).toEqual([])
   })
 
   it('informa si el backend no responde al cargar una investigación', async () => {

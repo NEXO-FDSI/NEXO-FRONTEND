@@ -20,13 +20,12 @@ import styles from './App.module.css'
 function InvestigationPage({ id }: { id: number }) {
   const { items, load } = useInvestigations()
   const inv = items.find((i) => i.indicator.id === id)
-  const local = inv !== undefined
-  // Si no está en este navegador, se reconstruye desde el backend (GET /indicators/{id}).
-  // El error se reinicia al cambiar de caso porque la página se monta con key={id}.
+  // Al abrir un caso se refresca desde el backend (fuente de verdad): lo que está en caché se
+  // muestra al instante y se fusiona con lo remoto. El error se reinicia al cambiar de caso
+  // porque la página se monta con key={id}.
   const [error, setError] = useState<ErrorInfo | null>(null)
 
   useEffect(() => {
-    if (local) return
     let active = true
     void load(id).then((r) => {
       if (active && !r.ok) setError(r.error)
@@ -34,7 +33,7 @@ function InvestigationPage({ id }: { id: number }) {
     return () => {
       active = false
     }
-  }, [id, local, load])
+  }, [id, load])
 
   if (!inv) {
     if (!error) {

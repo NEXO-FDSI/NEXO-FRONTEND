@@ -1,8 +1,8 @@
 import type { Investigation } from '../domain/investigation'
 
 /**
- * Persistencia local del historial. El backend no expone consultas (GET), así que el
- * navegador es el único lugar donde sobreviven los resultados entre recargas.
+ * Caché local de las investigaciones: se muestra al instante al abrir la app, mientras la
+ * sincronización con el backend (fuente de verdad) la completa y depura.
  * localStorage puede no existir o lanzar (modo privado, cuota): nunca se propaga.
  */
 const INVESTIGATIONS_KEY = 'nexo.investigations.v1'

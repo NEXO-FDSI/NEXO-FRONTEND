@@ -14,13 +14,25 @@ export type RegisterResult =
   | { ok: false; error: ErrorInfo }
 
 export type LoadResult = { ok: true } | { ok: false; error: ErrorInfo }
+export type SyncResult = { ok: true; total: number } | { ok: false; error: ErrorInfo }
+
+// ponytail: se recorren todas las páginas al arrancar (el Panel agrega sobre todo). Con
+// miles de investigaciones convendría cargar bajo demanda y pedir los agregados al backend.
+export type DeleteResult = { ok: true; eliminados: Record<string, number> } | { ok: false; error: ErrorInfo }
 
 export interface PipelineActions {
   register(payload: IndicatorCreate, options: { autoRun: boolean }): Promise<RegisterResult>
-  /** Trae del backend la investigación completa (GET /indicators/{id}) y la guarda. */
+  /** Trae del backend la investigación completa (GET /indicators/{id}) y la fusiona. */
   load(indicatorId: number): Promise<LoadResult>
+  /**
+   * Alinea la caché con el backend recorriendo GET /investigations de a 10: fusiona cada
+   * investigación y quita lo que ya no existe. `onPagina` informa el avance.
+   */
+  sync(onPagina?: (pagina: number, paginas: number) => void): Promise<SyncResult>
   /** Id del indicador ya registrado con ese valor (GET /indicators?tipo&valor), o null. */
   locate(tipo: IndicatorTipo, valor: string): Promise<number | null>
+  /** Elimina el indicador del backend (en cascada) y lo quita del historial local. */
+  deleteIndicator(indicatorId: number): Promise<DeleteResult>
   runStep(indicatorId: number, step: AutomaticStep): Promise<boolean>
   runAutomatic(inv: Investigation): Promise<boolean>
   validate(indicatorId: number, reportId: number, request: ValidationRequest): Promise<boolean>
@@ -68,6 +80,18 @@ export function createPipelineActions(dispatch: (action: InvestigationsAction) =
   const execute = (indicatorId: number, step: AutomaticStep) =>
     attempt(indicatorId, step, () => STEP_CALLS[step](indicatorId))
 
+  async function load(indicatorId: number): Promise<LoadResult> {
+    try {
+      dispatch({ type: 'loaded', snapshot: await nexoApi.getInvestigation(indicatorId) })
+      return { ok: true }
+    } catch (error) {
+      const info = toErrorInfo(error)
+      // 404: ya no existe en el backend (eliminado en otra sesión): sale de la caché.
+      if (info.status === 404) dispatch({ type: 'removed', indicatorId })
+      return { ok: false, error: info }
+    }
+  }
+
   async function runAutomatic(inv: Investigation): Promise<boolean> {
     const id = inv.indicator.id
     return withLock(id, async () => {
@@ -93,13 +117,25 @@ export function createPipelineActions(dispatch: (action: InvestigationsAction) =
       return { ok: true, indicator }
     },
 
-    async load(indicatorId) {
+    load,
+
+    async sync(onPagina) {
+      const ids: number[] = []
       try {
-        dispatch({ type: 'loaded', snapshot: await nexoApi.getInvestigation(indicatorId) })
-        return { ok: true }
+        for (let pagina = 1, paginas = 1; pagina <= paginas; pagina++) {
+          const respuesta = await nexoApi.listInvestigations(pagina)
+          paginas = respuesta.pages
+          onPagina?.(pagina, paginas)
+          for (const snapshot of respuesta.items) {
+            dispatch({ type: 'loaded', snapshot })
+            ids.push(snapshot.indicator.id)
+          }
+        }
       } catch (error) {
         return { ok: false, error: toErrorInfo(error) }
       }
+      dispatch({ type: 'synced', ids })
+      return { ok: true, total: ids.length }
     },
 
     async locate(tipo, valor) {
@@ -107,6 +143,27 @@ export function createPipelineActions(dispatch: (action: InvestigationsAction) =
         return (await nexoApi.findIndicator(tipo, valor))[0]?.id ?? null
       } catch {
         return null
+      }
+    },
+
+    async deleteIndicator(indicatorId) {
+      // Con el candado: no se borra mientras corre un paso sobre la misma investigación.
+      if (locks.has(indicatorId)) return { ok: false, error: { kind: 'unknown', status: null, message: 'Hay un paso en curso.' } }
+      locks.add(indicatorId)
+      try {
+        const { eliminados } = await nexoApi.deleteIndicator(indicatorId)
+        dispatch({ type: 'removed', indicatorId })
+        return { ok: true, eliminados }
+      } catch (error) {
+        const info = toErrorInfo(error)
+        // 404: ya no estaba en el backend; igual se quita del historial.
+        if (info.status === 404) {
+          dispatch({ type: 'removed', indicatorId })
+          return { ok: true, eliminados: {} }
+        }
+        return { ok: false, error: info }
+      } finally {
+        locks.delete(indicatorId)
       }
     },
 

@@ -25,6 +25,7 @@ export interface InvestigationsState {
 export type InvestigationsAction =
   | { type: 'registered'; indicator: IndicatorRead; entrada: string }
   | { type: 'loaded'; snapshot: InvestigationSnapshot }
+  | { type: 'synced'; ids: number[] }
   | { type: 'removed'; indicatorId: number }
   | { type: 'stepStarted'; indicatorId: number; step: StepId }
   | { type: 'stepFailed'; indicatorId: number; step: StepId; error: ErrorInfo }
@@ -49,9 +50,16 @@ export function newInvestigation(indicator: IndicatorRead, entrada: string): Inv
 }
 
 function snapshotEnrichment(response: EnrichmentResponse) {
-  const { fuente, tiene_evidencia, detalle, fuentes } = response
-  // fuentes ?? []: un backend anterior a la Fase 2 no la envía.
-  return { fuente, tiene_evidencia, resumen: summarizeOtx(detalle), fuentes: fuentes ?? [], detalle }
+  const { fuente, tiene_evidencia, detalle, fuentes, detalle_completo } = response
+  return {
+    fuente,
+    tiene_evidencia,
+    resumen: summarizeOtx(detalle),
+    // fuentes ?? []: un backend anterior a la Fase 2 no la envía.
+    fuentes: fuentes ?? [],
+    // Recortado (listado paginado) no se guarda como crudo: el visor ofrece recargarlo.
+    detalle: detalle_completo === false ? undefined : detalle,
+  }
 }
 
 /** Investigación reconstruida por GET /indicators/{id} (otro navegador, historial borrado…). */
@@ -66,6 +74,30 @@ export function fromSnapshot(snapshot: InvestigationSnapshot, entrada?: string):
     missing: false,
   }
 }
+
+const unirPorId = <T extends { id: number }>(a: T[], b: T[]): T[] =>
+  [...new Map([...a, ...b].map((x) => [x.id, x])).values()].toSorted((x, y) => x.id - y.id)
+
+/**
+ * Fusión monotónica de lo local con lo del backend: nunca retrocede. Lo local viene de las
+ * respuestas de los POST y puede ser más nuevo que un GET que salió antes (un paso que
+ * terminó mientras viajaba la consulta); de lo remoto se suma lo que falte (informes y
+ * validaciones hechos en otra sesión).
+ */
+function fusionar(local: Investigation, remoto: Investigation): Investigation {
+  return {
+    ...local,
+    indicator: remoto.indicator,
+    enrichment: local.enrichment ?? remoto.enrichment,
+    correlation: local.correlation ?? remoto.correlation,
+    reports: unirPorId(local.reports, remoto.reports),
+    validations: unirPorId(local.validations, remoto.validations),
+    missing: false,
+  }
+}
+
+/** Más reciente primero: el id del backend es incremental. */
+const porIdDesc = (items: Investigation[]) => items.toSorted((a, b) => b.indicator.id - a.indicator.id)
 
 export function initialState(items: Investigation[]): InvestigationsState {
   // La investigación abierta la da la URL (hooks/useRoute.ts), no el estado.
@@ -115,14 +147,24 @@ export function investigationsReducer(
     case 'loaded': {
       const id = action.snapshot.indicator.id
       const local = state.items.find((inv) => inv.indicator.id === id)
-      // Lo del backend manda (puede haber validaciones hechas desde otro navegador); la
-      // entrada original del analista solo la conoce este navegador.
-      const inv = fromSnapshot(action.snapshot, local?.entrada)
+      // La entrada original del analista solo la conoce el navegador que la registró.
+      const remoto = fromSnapshot(action.snapshot, local?.entrada)
       return {
         ...state,
-        items: local ? state.items.map((i) => (i.indicator.id === id ? inv : i)) : [inv, ...state.items],
+        items: local
+          ? state.items.map((i) => (i.indicator.id === id ? fusionar(i, remoto) : i))
+          : porIdDesc([remoto, ...state.items]),
         activity: withActivity(state, id, state.activity[id] ?? IDLE),
       }
+    }
+    case 'synced': {
+      // El backend es la fuente de verdad: lo que ya no está allí (eliminado, BD reiniciada)
+      // sale de la caché. Un id mayor que todos los listados se conserva: se registró
+      // mientras viajaba la consulta.
+      const vigentes = new Set(action.ids)
+      const maximo = Math.max(0, ...action.ids)
+      const items = state.items.filter((i) => vigentes.has(i.indicator.id) || (maximo > 0 && i.indicator.id > maximo))
+      return { ...state, items: porIdDesc(items) }
     }
     case 'removed': {
       const items = state.items.filter((inv) => inv.indicator.id !== action.indicatorId)

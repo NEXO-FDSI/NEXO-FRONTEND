@@ -70,6 +70,27 @@
   gap: 0.5rem;
 }
 
+.dialogValue {
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.consequences {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.consequences strong {
+  color: var(--color-text);
+}
+
+.irreversible {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
 .notices {
   display: grid;
   gap: 0.75rem;

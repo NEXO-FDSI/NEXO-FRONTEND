@@ -20,8 +20,8 @@ cd nexo-intel-frontend; npm run dev   # http://localhost:5173
 
 > **Antes de empezar.** Varios indicadores **ya existen en Supabase** (WannaCry
 > SHA-256, `84.234.75.108`, `googledrive.network`…). Registrarlos da 409 y la app abre
-> la investigación existente reconstruida desde el backend (Fase 1b). Investigaciones
-> también lista lo registrado desde otros navegadores.
+> la investigación existente. Investigaciones muestra **todas** las investigaciones de la
+> plataforma: el backend es la fuente de verdad y el navegador solo guarda una caché.
 >
 > **VirusTotal permite 4 consultas por minuto.** Espera unos 20 s entre indicadores
 > nuevos, salvo en el caso D4.
@@ -44,7 +44,9 @@ cd nexo-intel-frontend; npm run dev   # http://localhost:5173
 | B2 | Pegar `5ff465afaabcbf0150d1a3ab2c2e74f3a4426467` | Se selecciona **Hash** |
 | B3 | Tipo IP, valor `999.1.1.1`, Registrar | "Datos inválidos" con el motivo del backend; no se crea nada |
 | B4 | Registrar `24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c` | Abre la investigación existente (del historial o reconstruida desde el backend con su informe) |
-| B5 | En una ventana privada, abrir `#/investigaciones` y luego `#/investigaciones/36` | La lista muestra "Registradas desde otros navegadores"; el #36 se carga desde el backend con entidad wannacry e informe |
+| B5 | En una ventana privada (caché vacía), abrir `#/investigaciones` | "Sincronizando…" (o "página X de Y" con más de 10) y luego **una sola lista**, paginada de a 10, con todo lo registrado; el #36 (WannaCry) abre con su entidad e informe |
+| B7 | `http://localhost:8000/investigations?page=1` y `?size=11` | Página de hasta 10 con `total` y `pages`; `size=11` → 422. En `enrichment`, `detalle_completo: false` |
+| B6 | Eliminar un caso por Swagger (`DELETE /indicators/{id}`) y recargar la app | El caso desaparece también de la lista del navegador (la sincronización depura la caché) |
 
 ## C. Pipeline completo (análisis automático activado)
 
@@ -79,4 +81,6 @@ cd nexo-intel-frontend; npm run dev   # http://localhost:5173
 | E1 | Panel con varias investigaciones | "Requieren atención" ordena por severidad y luego por pendientes. Clic en **"Críticas o altas"** filtra la tabla |
 | E2 | Panel → "Fuentes y modelo" | Cada fuente: configurada y su último estado con latencia. IA: modelo, respaldo y "último análisis: groq en … ms" |
 | E3 | Informe y validación → **Descargar .md** | En el Markdown, Tipo, Fecha, Confianza y Severidad van en líneas separadas; tabla "Fuentes consultadas"; hallazgos con citas y línea "Redactado por IA" |
+| E5 | En un caso de prueba (p. ej. registra `nexo-borrar.example`) → **Eliminar** → Cancelar, y luego Eliminar → Aceptar | Al cancelar no pasa nada. Al aceptar vuelve a la lista y el caso desaparece. El log del backend muestra `eliminado en cascada: {...}` con las filas por tabla. Registrar de nuevo el mismo valor da 201 (no 409) |
+| E6 | Swagger → `DELETE /indicators/{id}` de un caso con informe y validación | Conteo por tabla (`human_validation`, `reports`, `enrichment_cache`…); un segundo DELETE da 404 |
 | E4 | `http://localhost:8000/docs` → `POST /indicators/{id}/report` sobre un caso analizado | La respuesta incluye `metadatos` con `severidad`, `concordancia`, `fuentes` e `ia` (contexto, prompt, salida, descartes) |

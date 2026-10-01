@@ -1,6 +1,7 @@
 import { request } from './http'
 import type {
   CorrelationResponse,
+  DeleteResponse,
   EnrichmentResponse,
   HealthResponse,
   StatusResponse,
@@ -8,6 +9,7 @@ import type {
   IndicatorRead,
   IndicatorTipo,
   InvestigationSnapshot,
+  InvestigationsPage,
   ReportRead,
   ValidationRead,
   ValidationRequest,
@@ -31,10 +33,16 @@ export const nexoApi = {
   findIndicator: (tipo: IndicatorTipo, valor: string) =>
     request<IndicatorRead[]>('GET', `/indicators?${new URLSearchParams({ tipo, valor })}`),
 
-  listIndicators: (limit = 100) => request<IndicatorRead[]>('GET', `/indicators?limit=${limit}`),
+  /** Página de hasta 10 investigaciones completas (OTX recortado), de la más reciente. */
+  listInvestigations: (page: number) =>
+    request<InvestigationsPage>('GET', `/investigations?page=${page}&size=10`),
 
   getInvestigation: (indicatorId: number) =>
     request<InvestigationSnapshot>('GET', `/indicators/${indicatorId}`),
+
+  /** Irreversible: borra en cascada informes, validaciones, caché y links del indicador. */
+  deleteIndicator: (indicatorId: number) =>
+    request<DeleteResponse>('DELETE', `/indicators/${indicatorId}`),
 
   enrich: (indicatorId: number) =>
     request<EnrichmentResponse>('POST', `/indicators/${indicatorId}/enrich`),

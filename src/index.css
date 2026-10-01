@@ -23,6 +23,7 @@
   --color-success: #3fb950;
   --color-warning: #d29922;
   --color-danger: #f85149;
+  --color-on-danger: #0b0f14; /* 5,7:1; el blanco daría 3,4 */
   --color-entity: #b4a7ff;
   --color-ai: #a78bfa;
 
@@ -57,6 +58,7 @@
   --color-success: #1a7f37;
   --color-warning: #9a6700;
   --color-danger: #c42b2b;
+  --color-on-danger: #ffffff;
   --color-entity: #5b3cc4;
   --color-ai: #6d28d9;
 

@@ -1,7 +1,7 @@
 import { Crosshair, FileText, LayoutList, ShieldQuestion, Sparkles, Trash2, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { describeFailure } from '../../domain/failures'
-import { formatDateTime, indicatorTypeLabel } from '../../domain/format'
+import { formatDateTime, indicatorTypeLabel, truncateMiddle } from '../../domain/format'
 import {
   AUTOMATIC_STEPS,
   investigationStatus,
@@ -20,6 +20,7 @@ import { STATUS_TONE } from '../tones'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { CopyButton } from '../ui/CopyButton'
 import { Panel } from '../ui/Panel'
 import { Tabs, type TabItem } from '../ui/Tabs'
@@ -53,7 +54,10 @@ const AUTOMATIC_TAB: Record<AutomaticStep, TabId> = {
 }
 
 export function CaseDetail({ inv }: { inv: Investigation }) {
-  const { activityOf, runStep, runAutomatic, validate, remove, dismissFailure } = useInvestigations()
+  const { activityOf, runStep, runAutomatic, validate, deleteIndicator, dismissFailure } = useInvestigations()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<TabId>(() => initialTab(inv))
   const [chosenReportId, setChosenReportId] = useState<number | null>(null)
 
@@ -80,14 +84,22 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
     if (await runAutomatic(inv)) setTab('resumen')
   }
 
-  function onRemove() {
-    const ok = window.confirm(
-      '¿Quitar esta investigación del historial de este navegador? El indicador sigue registrado en el backend.',
-    )
-    if (ok) {
-      remove(id)
+  function closeDialog() {
+    setConfirmingDelete(false)
+    setDeleteError(null)
+  }
+
+  async function confirmDelete() {
+    setDeleting(true)
+    setDeleteError(null)
+    const result = await deleteIndicator(id)
+    if (result.ok) {
       navigate(rutas.investigaciones)
+      return
     }
+    // El diálogo sigue abierto con el error: se puede reintentar o cancelar.
+    setDeleting(false)
+    setDeleteError(result.error.message)
   }
 
   const panelProps = { inv, activity, onRun: run }
@@ -186,8 +198,14 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
             >
               {busy ? 'Analizando…' : 'Análisis completo'}
             </Button>
-            <Button variant="danger" size="sm" icon={<Trash2 size={14} aria-hidden="true" />} onClick={onRemove}>
-              Quitar del historial
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 size={14} aria-hidden="true" />}
+              disabled={busy}
+              onClick={() => setConfirmingDelete(true)}
+            >
+              Eliminar
             </Button>
           </div>
         </div>
@@ -241,6 +259,41 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
       <Panel>
         <Tabs label="Resultados del pipeline" items={tabs} value={tab} onChange={setTab} />
       </Panel>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="¿Eliminar este indicador?"
+        confirmLabel="Eliminar definitivamente"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={closeDialog}
+      >
+        <p>
+          <span className={`${styles.dialogValue} mono`}>{truncateMiddle(valor, 52)}</span> se eliminará del backend
+          junto con todo lo que depende de él:
+        </p>
+        <ul className={styles.consequences}>
+          <li>
+            {inv.reports.length} versión(es) del informe, con su análisis de IA y su trazabilidad
+          </li>
+          <li>
+            {inv.validations.length} decisión(es) de analistas: <strong>se pierde ese historial de auditoría</strong>
+          </li>
+          <li>La caché de las fuentes de inteligencia consultadas (OTX, ThreatFox, VirusTotal)</li>
+          {inv.correlation?.entity && (
+            <li>
+              El vínculo con <strong>{inv.correlation.entity.nombre}</strong>; la entidad solo se borra si ningún otro
+              indicador la usa
+            </li>
+          )}
+        </ul>
+        <p className={styles.irreversible}>Esta acción no se puede deshacer.</p>
+        {deleteError && (
+          <Alert tone="danger" title="No se pudo eliminar el indicador">
+            {deleteError}
+          </Alert>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }
