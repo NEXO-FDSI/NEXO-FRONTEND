@@ -1,6 +1,7 @@
 import { Crosshair, ExternalLink } from 'lucide-react'
-import type { AnalisisIA } from '../../api/types'
+import type { AnalisisIA, Technique } from '../../api/types'
 import { groupByTactic, techniqueUrl } from '../../domain/attck'
+import { sourceName } from '../../domain/severity'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
 import { StepPrompt } from './StepPrompt'
@@ -10,6 +11,14 @@ import styles from './AttackPanel.module.css'
 interface AttackPanelProps extends CasePanelProps {
   /** Técnicas que el análisis de IA señaló como relevantes, con su motivo. */
   destacadas?: AnalisisIA['tecnicas_destacadas']
+}
+
+const nombres = (fuentes: readonly string[]) => fuentes.map(sourceName).join(', ')
+
+/** "Vía OTX, ThreatFox · citada por OTX": de qué fuentes sale la técnica. */
+function provenance({ fuentes = [], reportada_por = [] }: Technique): string | null {
+  if (fuentes.length === 0) return null
+  return `Vía ${nombres(fuentes)}${reportada_por.length > 0 ? ` · citada por ${nombres(reportada_por)}` : ''}`
 }
 
 export function AttackPanel({ inv, activity, onRun, destacadas = [] }: AttackPanelProps) {
@@ -26,8 +35,8 @@ export function AttackPanel({ inv, activity, onRun, destacadas = [] }: AttackPan
         title="Sin correlación todavía"
       >
         <p>
-          Resuelve la entidad (malware, grupo, herramienta o campaña) a partir de la evidencia de OTX
-          y, solo si la encuentra, recupera sus técnicas MITRE ATT&amp;CK.
+          Resuelve la entidad (malware, grupo, herramienta o campaña) combinando la evidencia de OTX,
+          ThreatFox y VirusTotal y, solo si la encuentra, recupera sus técnicas MITRE ATT&amp;CK.
         </p>
       </StepPrompt>
     )
@@ -49,6 +58,12 @@ export function AttackPanel({ inv, activity, onRun, destacadas = [] }: AttackPan
         <strong>{correlation.tecnicas.length}</strong> técnica(s) documentadas para{' '}
         <strong className={styles.entity}>{correlation.entity.nombre}</strong> en{' '}
         <strong>{groups.length}</strong> táctica(s). Fuente: MITRE ATT&amp;CK STIX, relación “uses”.
+        {!!correlation.fuentes?.length && (
+          <>
+            {' '}
+            Entidad respaldada por <strong>{nombres(correlation.fuentes)}</strong>.
+          </>
+        )}
         {motivoIA.size > 0 && (
           <>
             {' '}
@@ -76,7 +91,10 @@ export function AttackPanel({ inv, activity, onRun, destacadas = [] }: AttackPan
                       rel="noopener noreferrer"
                     >
                       <span className={`${styles.id} mono`}>{tecnica.id}</span>
-                      <span className={styles.name}>{tecnica.nombre}</span>
+                      <span className={styles.name}>
+                        {tecnica.nombre}
+                        {provenance(tecnica) && <span className={styles.sources}>{provenance(tecnica)}</span>}
+                      </span>
                       {motivoIA.has(tecnica.id) && (
                         <Badge tone="ai" title={motivoIA.get(tecnica.id)}>
                           IA

@@ -14,7 +14,7 @@ export function SeverityBadge({ nivel }: { nivel: NivelSeveridad | null }) {
   )
 }
 
-function SourceIcon({ estado }: Pick<FuenteEnriquecimiento, 'estado'>) {
+export function SourceIcon({ estado }: Pick<FuenteEnriquecimiento, 'estado'>) {
   if (estado === 'con_evidencia') return <CircleCheck aria-hidden="true" />
   if (isFailedSource(estado)) return <TriangleAlert aria-hidden="true" />
   if (estado === 'sin_evidencia') return <CircleMinus aria-hidden="true" />

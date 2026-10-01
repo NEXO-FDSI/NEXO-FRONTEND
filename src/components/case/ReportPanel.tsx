@@ -7,7 +7,8 @@ import { confidenceLevel } from '../../domain/confidence'
 import { formatDateTime, formatPercent } from '../../domain/format'
 import { currentDecision, STATUS_LABEL } from '../../domain/investigation'
 import { useElapsedSeconds } from '../../hooks/useElapsedSeconds'
-import { CONFIDENCE_TONE, STATUS_TONE } from '../tones'
+import { NIVEL_CONFIANZA_LABEL } from '../../domain/severity'
+import { CONFIDENCE_TONE, NIVEL_CONFIANZA_TONE, STATUS_TONE } from '../tones'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { CopyButton } from '../ui/CopyButton'
@@ -75,6 +76,7 @@ export function ReportPanel({ inv, activity, onRun, report, onSelectReport }: Re
   }
 
   const decision = currentDecision(inv, report.id)
+  const confianza = report.metadatos?.confianza
   return (
     <div className={styles.panel}>
       {running && <ReportProgress seconds={seconds} />}
@@ -97,9 +99,16 @@ export function ReportPanel({ inv, activity, onRun, report, onSelectReport }: Re
               Informe #{report.id} · {formatDateTime(report.timestamp)}
             </span>
           )}
-          <Badge tone={CONFIDENCE_TONE[confidenceLevel(report.nivel_confianza)]}>
-            Confianza {formatPercent(report.nivel_confianza)}
-          </Badge>
+          {confianza ? (
+            <Badge tone={NIVEL_CONFIANZA_TONE[confianza.nivel]} title={confianza.motivos.join('; ')}>
+              {NIVEL_CONFIANZA_LABEL[confianza.nivel]}
+            </Badge>
+          ) : (
+            // Informes anteriores a la combinación de fuentes: solo la confianza de la asociación.
+            <Badge tone={CONFIDENCE_TONE[confidenceLevel(report.nivel_confianza)]}>
+              Confianza {formatPercent(report.nivel_confianza)}
+            </Badge>
+          )}
           <Badge tone={STATUS_TONE[decision ?? 'pendiente']}>{STATUS_LABEL[decision ?? 'pendiente']}</Badge>
         </div>
         <div className={styles.actions}>

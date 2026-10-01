@@ -52,6 +52,10 @@ export interface ResumenFuente {
   primera_vez: string | null
   ultima_vez: string | null
   referencia_url: string | null
+  /** IDs ATT&CK que la fuente cita directamente (OTX `attack_ids`). Ausente en cachés antiguas. */
+  tecnicas_attck?: string[]
+  /** Referencias externas de la fuente: solo http(s), máx. 5. Ausente en cachés antiguas. */
+  referencias?: string[]
 }
 
 export interface FuenteEnriquecimiento {
@@ -64,11 +68,16 @@ export interface FuenteEnriquecimiento {
   latencia_ms: number | null
 }
 
-/** Respuesta de POST /indicators/{id}/enrich. `tiene_evidencia` y `detalle` son de OTX. */
+/**
+ * Respuesta de POST /indicators/{id}/enrich. `tiene_evidencia` es combinado (alguna fuente lo
+ * encontró); `detalle` es OTX recortado ({} si OTX no respondió).
+ */
 export interface EnrichmentResponse {
   indicator_id: number
   fuente: string
   tiene_evidencia: boolean
+  /** "parcial" si alguna fuente no se pudo verificar. */
+  cobertura?: 'completa' | 'parcial'
   detalle: OtxDetalle
   fuentes: FuenteEnriquecimiento[]
 }
@@ -83,6 +92,10 @@ export interface Technique {
   id: string // id oficial ATT&CK, ej. "T1566" o "T1059.001"
   nombre: string
   tactica: string
+  /** Procedencia: fuentes (`fuente_api`) que sustentan la entidad de la que sale la técnica. */
+  fuentes?: string[]
+  /** Fuentes que además citan este ID de ATT&CK directamente. */
+  reportada_por?: string[]
 }
 
 /** Respuesta de POST /indicators/{id}/correlate. Sin entidad: todo null y `tecnicas: []`. */
@@ -92,6 +105,8 @@ export interface CorrelationResponse {
   entity: EntityRef | null
   confianza: number | null
   evidencia: string | null
+  /** Fuentes que respaldan la entidad (app/correlation/service.py). */
+  fuentes?: string[]
   tecnicas: Technique[]
 }
 
@@ -110,6 +125,21 @@ export interface Concordancia {
   /** Entidades ATT&CK a las que resuelven esas familias. */
   entidades: string[]
   resultado: 'concuerda' | 'discrepa' | 'sugiere' | 'no_comparable'
+}
+
+/** app/reporting/severity.py::detectar_contradicciones. */
+export interface Contradiccion {
+  tipo: 'entidad_distinta' | 'vt_limpio' | 'lista_blanca'
+  fuentes: string[]
+  detalle: string
+}
+
+export type NivelConfianza = 'alta' | 'media' | 'baja' | 'sin_evidencia'
+
+/** app/reporting/severity.py::calcular_confianza: regla determinística con su justificación. */
+export interface ConfianzaInforme {
+  nivel: NivelConfianza
+  motivos: string[]
 }
 
 export type TipoHallazgo = 'evidencia' | 'inferencia' | 'hipotesis'
@@ -148,6 +178,10 @@ export interface RegistroIA {
 
 export interface ReportMetadatos {
   severidad: Severidad
+  /** Ausentes en informes anteriores a la combinación de fuentes. */
+  confianza?: ConfianzaInforme
+  contradicciones?: Contradiccion[]
+  cobertura?: 'completa' | 'parcial'
   concordancia: Concordancia[]
   fuentes: Pick<FuenteEnriquecimiento, 'fuente' | 'etiqueta' | 'estado' | 'resumen' | 'error'>[]
   ia: RegistroIA

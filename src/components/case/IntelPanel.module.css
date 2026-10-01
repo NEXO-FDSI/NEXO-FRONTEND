@@ -4,12 +4,6 @@
   min-width: 0;
 }
 
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0.75rem;
-}
-
 .card {
   display: flex;
   flex-direction: column;
@@ -111,9 +105,86 @@
   gap: 0.25rem;
 }
 
-.subtitle {
+/* Tres estados que se distinguen por icono, texto y color (nunca solo por color). */
+.status {
+  --tone: var(--color-text-subtle);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  font-size: 0.85rem;
+}
+
+.status svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 0.1rem;
+  color: var(--tone);
+}
+
+.status strong {
+  color: var(--tone);
+}
+
+.tabIcon {
+  --tone: var(--color-text-subtle);
+  display: inline-flex;
+  color: var(--tone);
+}
+
+.tabIcon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.evidencia {
+  --tone: var(--color-danger);
+}
+
+.sinEvidencia {
+  --tone: var(--color-info);
+}
+
+.fallo {
+  --tone: var(--color-warning);
+  border-style: dashed;
+}
+
+.tabIcon.fallo {
+  border-style: none;
+}
+
+.fuera {
+  --tone: var(--color-text-subtle);
+}
+
+.section {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.section h4 {
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.references {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+}
+
+.references a {
+  overflow-wrap: anywhere;
 }

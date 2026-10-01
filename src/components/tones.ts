@@ -1,3 +1,4 @@
+import type { NivelConfianza } from '../api/types'
 import type { ConfidenceLevel } from '../domain/confidence'
 import type { InvestigationStatus } from '../domain/investigation'
 import type { Tone } from './ui/Badge'
@@ -16,4 +17,11 @@ export const CONFIDENCE_TONE: Record<ConfidenceLevel, Tone> = {
   media: 'warning',
   baja: 'danger',
   nula: 'neutral',
+}
+
+export const NIVEL_CONFIANZA_TONE: Record<NivelConfianza, Tone> = {
+  alta: 'success',
+  media: 'warning',
+  baja: 'danger',
+  sin_evidencia: 'neutral',
 }

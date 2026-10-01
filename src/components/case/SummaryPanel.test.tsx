@@ -26,6 +26,35 @@ describe('SummaryPanel', () => {
     expect(screen.queryByRole('region', { name: 'Resumen de la IA' })).not.toBeInTheDocument()
   })
 
+  it('muestra el nivel de confianza y las contradicciones sin repetirlas como concordancia', () => {
+    const metadatos: ReportMetadatos = {
+      ...wannacryMetadatos,
+      confianza: { nivel: 'baja', motivos: ['VirusTotal: 0 de 70 motores lo detectan, pero AlienVault OTX lo reporta(n)'] },
+      contradicciones: [
+        {
+          tipo: 'vt_limpio',
+          fuentes: ['virustotal', 'alienvault_otx'],
+          detalle: 'VirusTotal: 0 de 70 motores lo detectan, pero AlienVault OTX lo reporta(n)',
+        },
+        {
+          tipo: 'entidad_distinta',
+          fuentes: ['threatfox'],
+          detalle: 'ThreatFox reporta familias que ATT&CK asocia a emotet, no a la entidad asociada',
+        },
+      ],
+      concordancia: [
+        { fuente: 'threatfox', etiqueta: 'ThreatFox', familias: ['Emotet'], entidades: ['emotet'], resultado: 'discrepa' },
+      ],
+    }
+    render(<SummaryPanel inv={investigation({ reports: [{ ...wannacryReport, metadatos }] })} onOpenAnalysis={vi.fn()} />)
+
+    expect(screen.getByRole('region', { name: 'Nivel de confianza' })).toHaveTextContent('Confianza baja')
+    const contradicciones = screen.getByRole('region', { name: 'Contradicciones entre fuentes' })
+    expect(contradicciones).toHaveTextContent('VirusTotal: 0 de 70 motores lo detectan')
+    expect(contradicciones).toHaveTextContent('ThreatFox reporta familias que ATT&CK asocia a emotet')
+    expect(screen.queryByRole('region', { name: 'Concordancia entre fuentes' })).not.toBeInTheDocument()
+  })
+
   it('sin informe explica que la severidad no la decide la IA', () => {
     render(<SummaryPanel inv={investigation()} onOpenAnalysis={vi.fn()} />)
     expect(screen.getByText('Sin evaluar')).toBeInTheDocument()

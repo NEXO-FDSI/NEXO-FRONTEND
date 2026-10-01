@@ -1,6 +1,7 @@
 import type {
   EstadoFuente,
   FuenteEnriquecimiento,
+  NivelConfianza,
   NivelSeveridad,
   ReportMetadatos,
   TipoHallazgo,
@@ -37,6 +38,18 @@ export const ESTADO_FUENTE_LABEL: Record<EstadoFuente, string> = {
   omitido: 'omitida (IP no pública)',
   no_disponible: 'sin respuesta registrada',
 }
+
+export const NIVEL_CONFIANZA_LABEL: Record<NivelConfianza, string> = {
+  alta: 'Confianza alta',
+  media: 'Confianza media',
+  baja: 'Confianza baja',
+  sin_evidencia: 'Sin evidencia suficiente',
+}
+
+const NOMBRE_FUENTE: Record<string, string> = { alienvault_otx: 'OTX', threatfox: 'ThreatFox', virustotal: 'VirusTotal' }
+
+/** Nombre corto de una fuente (`fuente_api` → "OTX"); una fuente desconocida se muestra tal cual. */
+export const sourceName = (fuente: string): string => NOMBRE_FUENTE[fuente] ?? fuente
 
 export const VEREDICTO_LABEL: Record<Veredicto, string> = {
   malicioso: 'Malicioso',
