@@ -18,12 +18,7 @@ function withTwo(): InvestigationsState {
 }
 
 describe('investigationsReducer', () => {
-  it('arranca seleccionando la investigación más reciente', () => {
-    expect(initialState([]).selectedId).toBeNull()
-    expect(withTwo().selectedId).toBe(2)
-  })
-
-  it('registra un indicador al principio, sin duplicarlo, y lo selecciona', () => {
+  it('registra un indicador al principio, sin duplicarlo', () => {
     const state = investigationsReducer(withTwo(), {
       type: 'registered',
       indicator: wannacryIndicator,
@@ -32,24 +27,14 @@ describe('investigationsReducer', () => {
 
     expect(state.items.map((inv) => inv.indicator.id)).toEqual([1, 2])
     expect(state.items[0].entrada).toBe(WANNACRY_HASH)
-    expect(state.selectedId).toBe(1)
     expect(state.activity[1]).toEqual(IDLE)
   })
 
-  it('cambia la selección', () => {
-    expect(investigationsReducer(withTwo(), { type: 'selected', indicatorId: 1 }).selectedId).toBe(1)
-  })
-
-  it('al quitar la seleccionada, selecciona la siguiente; si no, conserva la selección', () => {
-    const removedSelected = investigationsReducer(withTwo(), { type: 'removed', indicatorId: 2 })
-    expect(removedSelected.items).toHaveLength(1)
-    expect(removedSelected.selectedId).toBe(1)
-
-    const removedOther = investigationsReducer(withTwo(), { type: 'removed', indicatorId: 1 })
-    expect(removedOther.selectedId).toBe(2)
-
-    const empty = investigationsReducer(removedSelected, { type: 'removed', indicatorId: 1 })
-    expect(empty.selectedId).toBeNull()
+  it('quita una investigación y su actividad', () => {
+    const started = investigationsReducer(withTwo(), { type: 'stepStarted', indicatorId: 2, step: 'enrich' })
+    const removed = investigationsReducer(started, { type: 'removed', indicatorId: 2 })
+    expect(removed.items.map((inv) => inv.indicator.id)).toEqual([1])
+    expect(removed.activity[2]).toBeUndefined()
   })
 
   it('marca el paso en curso y lo libera al fallar, guardando el error', () => {

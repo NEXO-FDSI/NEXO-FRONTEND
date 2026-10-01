@@ -3,6 +3,7 @@ import type {
   CorrelationResponse,
   EnrichmentResponse,
   HealthResponse,
+  StatusResponse,
   IndicatorCreate,
   IndicatorRead,
   ReportRead,
@@ -11,13 +12,15 @@ import type {
 } from './types'
 
 const HEALTH_TIMEOUT_MS = 5_000
-// El LLM tiene 60 s de timeout en el backend (app/ai_component/llm_client.py) más la
-// correlación y la consulta a Chroma: se deja margen para no cortar un informe válido.
+// Peor caso del backend (app/ai_component/llm_client.py): primario 20 s + espera de un 429
+// (≤ 8 s) + reintento 20 s + respaldo 60 s ≈ 108 s, más correlación y Chroma.
 export const REPORT_TIMEOUT_MS = 120_000
 
 /** Un método por endpoint de NEXO-BACKEND, en el orden del pipeline. */
 export const nexoApi = {
   health: () => request<HealthResponse>('GET', '/health', { timeoutMs: HEALTH_TIMEOUT_MS }),
+
+  status: () => request<StatusResponse>('GET', '/status', { timeoutMs: HEALTH_TIMEOUT_MS }),
 
   createIndicator: (payload: IndicatorCreate) =>
     request<IndicatorRead>('POST', '/indicators', { body: payload }),

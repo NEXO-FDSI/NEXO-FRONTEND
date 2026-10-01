@@ -1,12 +1,17 @@
 /**
  * Respuestas con la forma exacta de NEXO-BACKEND, tomadas de su README (escenario 1:
- * WannaCry) y de data/test_dataset/scenarios.json (escenario 5: 8.8.8.8 benigno).
+ * WannaCry) y de data/test_dataset/scenarios.json (escenario 5: 8.8.8.8 benigno). Las
+ * fuentes y los metadatos del informe reproducen la corrida real del 2026-09-30
+ * (backend docs/evolucion/fase-04-ia-estructurada.md).
  */
 import type {
   CorrelationResponse,
   EnrichmentResponse,
+  FuenteEnriquecimiento,
   IndicatorRead,
+  ReportMetadatos,
   ReportRead,
+  StatusResponse,
   ValidationRead,
 } from '../api/types'
 import type { Investigation } from '../domain/investigation'
@@ -22,10 +27,60 @@ export const wannacryIndicator: IndicatorRead = {
   timestamp_ingesta: '2026-09-22T17:51:20.169333Z',
 }
 
+const sinResumen = { familias: [], etiquetas: [], detecciones: null, confianza: null, primera_vez: null, ultima_vez: null }
+
+export const wannacryFuentes: FuenteEnriquecimiento[] = [
+  {
+    fuente: 'alienvault_otx',
+    etiqueta: 'AlienVault OTX',
+    estado: 'con_evidencia',
+    resumen: {
+      ...sinResumen,
+      tiene_evidencia: true,
+      veredicto: 'malicioso',
+      familias: ['WannaCry'],
+      etiquetas: ['wannacry', 'ransomware'],
+      detecciones: { pulses: 50, pulses_masivos: 1 },
+      referencia_url: `https://otx.alienvault.com/indicator/file/${'24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c'}`,
+    },
+    error: null,
+    desde_cache: false,
+    latencia_ms: 6870,
+  },
+  {
+    fuente: 'threatfox',
+    etiqueta: 'ThreatFox',
+    estado: 'sin_evidencia',
+    resumen: { ...sinResumen, tiene_evidencia: false, veredicto: 'sin_evidencia', referencia_url: null },
+    error: null,
+    desde_cache: false,
+    latencia_ms: 440,
+  },
+  {
+    fuente: 'virustotal',
+    etiqueta: 'VirusTotal',
+    estado: 'con_evidencia',
+    resumen: {
+      ...sinResumen,
+      tiene_evidencia: true,
+      veredicto: 'malicioso',
+      familias: ['wannacry', 'wanna', 'wannacrypt'],
+      etiquetas: ['trojan', 'ransomware', 'worm'],
+      detecciones: { maliciosos: 69, sospechosos: 0, total: 71 },
+      primera_vez: '2017-05-12T08:57:51+00:00',
+      referencia_url: 'https://www.virustotal.com/gui/file/24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c',
+    },
+    error: null,
+    desde_cache: false,
+    latencia_ms: 518,
+  },
+]
+
 export const wannacryEnrichment: EnrichmentResponse = {
   indicator_id: 1,
   fuente: 'alienvault_otx',
   tiene_evidencia: true,
+  fuentes: wannacryFuentes,
   detalle: {
     indicator: WANNACRY_HASH,
     type: 'sha256',
@@ -90,11 +145,56 @@ export const WANNACRY_REPORT_MD = `# Informe de indicador: ${WANNACRY_HASH}
 ## Análisis
 
 El hash está asociado al malware Wannacry. Ver [ATT&CK](https://attack.mitre.org/software/S0366/).
-
-## Estado de validación
-
-Pendiente de revisión humana.
 `
+
+export const wannacryMetadatos: ReportMetadatos = {
+  severidad: {
+    nivel: 'critica',
+    motivos: ['asociado a wannacry con confianza 0.9', 'VirusTotal: 69 motores maliciosos, 0 sospechosos'],
+  },
+  concordancia: [
+    { fuente: 'threatfox', etiqueta: 'ThreatFox', familias: [], entidades: [], resultado: 'no_comparable' },
+    {
+      fuente: 'virustotal',
+      etiqueta: 'VirusTotal',
+      familias: ['wannacry', 'wanna', 'wannacrypt'],
+      entidades: ['wannacry'],
+      resultado: 'concuerda',
+    },
+  ],
+  fuentes: wannacryFuentes.map(({ fuente, etiqueta, estado, resumen, error }) => ({ fuente, etiqueta, estado, resumen, error })),
+  ia: {
+    estado: 'generado',
+    motivo: null,
+    analisis: {
+      resumen: 'El hash corresponde a WannaCry, un ransomware gusano con alta detección.',
+      hallazgos: [
+        { afirmacion: 'El indicador se asocia con confianza 0.9 a la familia WannaCry.', tipo: 'evidencia', fuentes: ['E-COR'] },
+        { afirmacion: 'VirusTotal reporta 69 de 71 motores maliciosos.', tipo: 'evidencia', fuentes: ['E-VT'] },
+        { afirmacion: "La etiqueta 'worm' sugiere capacidad de auto-propagación.", tipo: 'inferencia', fuentes: ['E-VT'] },
+        { afirmacion: 'Podría explotar SMB para moverse lateralmente.', tipo: 'hipotesis', fuentes: ['T1210'] },
+      ],
+      tecnicas_destacadas: [{ id: 'T1210', motivo: 'WannaCry explota servicios remotos para moverse lateralmente.' }],
+      investigacion_recomendada: ['Buscar conexiones SMB (445) salientes desde el host afectado.'],
+      limitaciones: ['ThreatFox no aportó datos.'],
+      informacion_faltante: ['Infraestructura de C2 asociada al hash.'],
+    },
+    descartes: [],
+    contexto: [
+      { id: 'E-COR', titulo: 'Correlación determinística de NEXO', texto: 'Entidad asociada: wannacry (malware), confianza 0.9.' },
+      { id: 'E-OTX', titulo: 'AlienVault OTX', texto: 'veredicto de la fuente: malicioso; 50 pulse(s) de la comunidad lo mencionan.' },
+      { id: 'E-TF', titulo: 'ThreatFox', texto: 'veredicto de la fuente: sin evidencia.' },
+      { id: 'E-VT', titulo: 'VirusTotal', texto: 'veredicto de la fuente: malicioso; 69 de 71 motores lo marcan malicioso.' },
+      { id: 'T1210', titulo: 'Exploitation of Remote Services (Lateral Movement)', texto: 'Adversaries may exploit remote services…' },
+    ],
+    prompt: 'Eres un asistente…\n<datos>\n[E-COR] …\n</datos>\n\nResponde ahora solo con el objeto JSON.',
+    proveedor: 'groq',
+    modelo: 'qwen/qwen3.8-27b',
+    latencia_ms: 1857,
+    tokens: { prompt: 2013, respuesta: 541 },
+    intentos_fallidos: [],
+  },
+}
 
 export const wannacryReport: ReportRead = {
   id: 1,
@@ -102,6 +202,7 @@ export const wannacryReport: ReportRead = {
   contenido: WANNACRY_REPORT_MD,
   nivel_confianza: 0.9,
   timestamp: '2026-09-22T17:51:39.361866Z',
+  metadatos: wannacryMetadatos,
 }
 
 export const acceptedValidation: ValidationRead = {
@@ -124,6 +225,19 @@ export const benignEnrichment: EnrichmentResponse = {
   indicator_id: 2,
   fuente: 'alienvault_otx',
   tiene_evidencia: false,
+  fuentes: [
+    {
+      fuente: 'alienvault_otx',
+      etiqueta: 'AlienVault OTX',
+      estado: 'sin_evidencia',
+      resumen: { ...sinResumen, tiene_evidencia: false, veredicto: 'benigno_conocido', detecciones: { pulses: 0, pulses_masivos: 0 }, referencia_url: null },
+      error: null,
+      desde_cache: false,
+      latencia_ms: 480,
+    },
+    { fuente: 'threatfox', etiqueta: 'ThreatFox', estado: 'no_configurado', resumen: null, error: null, desde_cache: false, latencia_ms: null },
+    { fuente: 'virustotal', etiqueta: 'VirusTotal', estado: 'limite_cuota', resumen: null, error: 'VirusTotal alcanzó su límite de consultas (429)', desde_cache: false, latencia_ms: null },
+  ],
   detalle: {
     indicator: '8.8.8.8',
     type: 'IPv4',
@@ -170,4 +284,14 @@ export const wannacrySnapshot = {
   fuente: wannacryEnrichment.fuente,
   tiene_evidencia: true,
   resumen: summarizeOtx(wannacryEnrichment.detalle),
+  fuentes: wannacryFuentes,
+}
+
+export const statusResponse: StatusResponse = {
+  fuentes: [
+    { fuente: 'alienvault_otx', etiqueta: 'AlienVault OTX', tipos: ['domain', 'hash', 'ip', 'url'], configurada: true },
+    { fuente: 'threatfox', etiqueta: 'ThreatFox', tipos: ['domain', 'hash', 'ip', 'url'], configurada: true },
+    { fuente: 'virustotal', etiqueta: 'VirusTotal', tipos: ['domain', 'hash', 'ip', 'url'], configurada: false },
+  ],
+  ia: { proveedor: 'groq', modelo: 'qwen/qwen3.8-27b', respaldo: { proveedor: 'ollama', modelo: 'qwen3:8b' } },
 }

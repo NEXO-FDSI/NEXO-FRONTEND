@@ -12,6 +12,7 @@ import {
   type AutomaticStep,
   type Investigation,
 } from '../../domain/investigation'
+import { navigate, rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
 import { STATUS_TONE } from '../tones'
@@ -73,7 +74,10 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
     const ok = window.confirm(
       '¿Quitar esta investigación del historial de este navegador? El indicador sigue registrado en el backend.',
     )
-    if (ok) remove(id)
+    if (ok) {
+      remove(id)
+      navigate(rutas.investigaciones)
+    }
   }
 
   const panelProps = { inv, activity, onRun: run }

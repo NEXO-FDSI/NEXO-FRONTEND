@@ -5,11 +5,9 @@ import type { PipelineActions } from './pipelineActions'
 
 export interface InvestigationsContextValue extends PipelineActions {
   items: Investigation[]
-  selected: Investigation | null
   /** false si el navegador no pudo guardar el historial (modo privado, cuota llena). */
   persisted: boolean
   activityOf(indicatorId: number): CaseActivity
-  select(indicatorId: number): void
   remove(indicatorId: number): void
   dismissFailure(indicatorId: number): void
 }

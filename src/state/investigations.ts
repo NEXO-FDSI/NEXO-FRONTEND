@@ -19,12 +19,10 @@ export interface InvestigationsState {
   /** Más reciente primero. */
   items: Investigation[]
   activity: Record<number, CaseActivity>
-  selectedId: number | null
 }
 
 export type InvestigationsAction =
   | { type: 'registered'; indicator: IndicatorRead; entrada: string }
-  | { type: 'selected'; indicatorId: number }
   | { type: 'removed'; indicatorId: number }
   | { type: 'stepStarted'; indicatorId: number; step: StepId }
   | { type: 'stepFailed'; indicatorId: number; step: StepId; error: ErrorInfo }
@@ -49,7 +47,8 @@ export function newInvestigation(indicator: IndicatorRead, entrada: string): Inv
 }
 
 export function initialState(items: Investigation[]): InvestigationsState {
-  return { items, activity: {}, selectedId: items[0]?.indicator.id ?? null }
+  // La investigación abierta la da la URL (hooks/useRoute.ts), no el estado.
+  return { items, activity: {} }
 }
 
 function withActivity(
@@ -90,17 +89,12 @@ export function investigationsReducer(
           ...state.items.filter((inv) => inv.indicator.id !== id),
         ],
         activity: withActivity(state, id, IDLE),
-        selectedId: id,
       }
     }
-    case 'selected':
-      return { ...state, selectedId: action.indicatorId }
     case 'removed': {
       const items = state.items.filter((inv) => inv.indicator.id !== action.indicatorId)
       const { [action.indicatorId]: _removed, ...activity } = state.activity
-      const selectedId =
-        state.selectedId === action.indicatorId ? (items[0]?.indicator.id ?? null) : state.selectedId
-      return { items, activity, selectedId }
+      return { items, activity }
     }
     case 'stepStarted':
       return {
@@ -125,10 +119,11 @@ export function investigationsReducer(
     case 'failureDismissed':
       return { ...state, activity: withActivity(state, action.indicatorId, IDLE) }
     case 'enriched': {
-      const { indicator_id, fuente, tiene_evidencia, detalle } = action.response
+      const { indicator_id, fuente, tiene_evidencia, detalle, fuentes } = action.response
       return settle(state, indicator_id, (inv) => ({
         ...inv,
-        enrichment: { fuente, tiene_evidencia, resumen: summarizeOtx(detalle), detalle },
+        // fuentes ?? []: un backend anterior a la Fase 2 no la envía.
+        enrichment: { fuente, tiene_evidencia, resumen: summarizeOtx(detalle), fuentes: fuentes ?? [], detalle },
       }))
     }
     case 'correlated':

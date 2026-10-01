@@ -24,10 +24,8 @@ export function InvestigationsProvider({ children }: { children: ReactNode }) {
     () => ({
       ...actions,
       items: state.items,
-      selected: state.items.find((inv) => inv.indicator.id === state.selectedId) ?? null,
       persisted,
       activityOf: (indicatorId) => state.activity[indicatorId] ?? IDLE,
-      select: (indicatorId) => dispatch({ type: 'selected', indicatorId }),
       remove: (indicatorId) => dispatch({ type: 'removed', indicatorId }),
       dismissFailure: (indicatorId) => dispatch({ type: 'failureDismissed', indicatorId }),
     }),

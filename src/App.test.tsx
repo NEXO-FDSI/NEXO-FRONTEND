@@ -10,6 +10,7 @@ import {
   benignIndicator,
   benignReport,
   investigation,
+  statusResponse,
   unresolvedCorrelation,
   WANNACRY_HASH,
   wannacryCorrelation,
@@ -23,6 +24,7 @@ type Route = Reply | ((request: { body: unknown }) => Reply | Promise<Reply>)
 
 const WANNACRY_ROUTES: Record<string, Route> = {
   'GET /health': reply(200, { status: 'ok' }),
+  'GET /status': reply(200, statusResponse),
   'POST /indicators': reply(201, wannacryIndicator),
   'POST /indicators/1/enrich': reply(200, wannacryEnrichment),
   'POST /indicators/1/correlate': reply(200, wannacryCorrelation),
@@ -30,18 +32,28 @@ const WANNACRY_ROUTES: Record<string, Route> = {
   'POST /reports/1/validate': ({ body }) => reply(201, { ...acceptedValidation, ...(body as object) }),
 }
 
-function renderApp(routes: Record<string, Route> = {}, history: Investigation[] = []) {
+function renderApp(routes: Record<string, Route> = {}, history: Investigation[] = [], hash = '') {
   if (history.length > 0) window.localStorage.setItem('nexo.investigations.v1', JSON.stringify(history))
+  window.location.hash = hash
   const backend = mockBackend({ ...WANNACRY_ROUTES, ...routes })
   const user = userEvent.setup()
   render(<App />)
   return { ...backend, user }
 }
 
-const chain = () => within(screen.getByRole('region', { name: 'Cadena de evidencia' }))
-const sidebar = () => within(screen.getByRole('complementary'))
+type User = ReturnType<typeof userEvent.setup>
 
-async function registerIndicator(user: ReturnType<typeof userEvent.setup>, tipo: string, valor: string) {
+const chain = () => within(screen.getByRole('region', { name: 'Cadena de evidencia' }))
+const nav = () => within(screen.getByRole('navigation', { name: 'Navegación principal' }))
+const list = () => within(screen.getByRole('region', { name: 'Investigaciones' }))
+
+async function openAnalyze(user: User) {
+  await user.click(screen.getByRole('link', { name: 'Analizar indicador' }))
+  await screen.findByRole('region', { name: 'Analizar indicador' })
+}
+
+async function registerIndicator(user: User, tipo: string, valor: string) {
+  if (!screen.queryByRole('region', { name: 'Analizar indicador' })) await openAnalyze(user)
   await user.click(screen.getByRole('radio', { name: tipo }))
   await user.clear(screen.getByLabelText('Valor'))
   await user.type(screen.getByLabelText('Valor'), valor)
@@ -53,18 +65,24 @@ describe('NEXO Intel', () => {
     const { user, paths, calls } = renderApp()
     expect(screen.getByText('Cómo funciona NEXO')).toBeInTheDocument()
     expect(await screen.findByText('API en línea')).toBeInTheDocument()
+    expect(await screen.findByText(/IA: groq/)).toHaveTextContent('IA: groq · qwen/qwen3.8-27b')
 
     await registerIndicator(user, 'Hash', WANNACRY_HASH.toUpperCase())
-    await user.type(screen.getByLabelText(/Fuente/), 'x') // el formulario sigue usable tras enviar
 
-    expect(await screen.findByText('Indicador #1 registrado.')).toBeInTheDocument()
-    expect(screen.getByText(/Forma canónica/)).toBeInTheDocument()
+    // Al registrar se abre la investigación, con su ruta enlazable.
     expect(await chain().findByText('wannacry')).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/investigaciones/1')
+    expect(screen.getByRole('navigation', { name: 'Ruta de navegación' })).toHaveTextContent('Investigaciones')
+    expect(screen.getByText('Entrada original')).toBeInTheDocument()
     expect(chain().getByText('3 técnica(s) ATT&CK')).toBeInTheDocument()
     expect(chain().getByRole('meter', { name: 'Confianza de la asociación' })).toHaveAttribute('aria-valuenow', '90')
     expect(chain().getByText(/respaldado por 2 pulse/)).toBeInTheDocument()
     await vi.waitFor(() => expect(paths()).toContain('POST /indicators/1/report'))
-    expect(calls[1].body).toEqual({ tipo: 'hash', valor: WANNACRY_HASH.toUpperCase(), fuente: null })
+    expect(calls.find((c) => c.path === '/indicators')?.body).toEqual({
+      tipo: 'hash',
+      valor: WANNACRY_HASH.toUpperCase(),
+      fuente: null,
+    })
 
     // Enriquecimiento: pulses, volcado agregado descartado y tags resumidos.
     await user.click(screen.getByRole('tab', { name: /Enriquecimiento/ }))
@@ -102,9 +120,18 @@ describe('NEXO Intel', () => {
     expect(calls.at(-1)).toMatchObject({ path: '/reports/1/validate', body: { decision: 'aceptado', analista: 'analista SOC N1' } })
     expect(window.localStorage.getItem('nexo.analista')).toBe('analista SOC N1')
 
-    const kpis = within(screen.getByRole('region', { name: 'Resumen de investigaciones' }))
+    await user.click(nav().getByRole('link', { name: /Panel/ }))
+    const kpis = within(await screen.findByRole('region', { name: 'Resumen de investigaciones' }))
     expect(kpis.getByText('Validados').previousSibling).toHaveTextContent('1')
     expect(JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)[0].validations).toHaveLength(1)
+    // Las fuentes del enriquecimiento se guardan (sin la respuesta cruda de OTX).
+    const [guardada] = JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)
+    expect(guardada.enrichment.fuentes.map((f: { estado: string }) => f.estado)).toEqual([
+      'con_evidencia',
+      'sin_evidencia',
+      'con_evidencia',
+    ])
+    expect(guardada.enrichment.detalle).toBeUndefined()
   })
 
   it('declara "sin asociación" para un indicador benigno y no atribuye técnicas', async () => {
@@ -115,6 +142,7 @@ describe('NEXO Intel', () => {
       'POST /indicators/2/report': reply(201, benignReport),
     })
 
+    await openAnalyze(user)
     await user.click(screen.getByRole('button', { name: 'IP benigna' }))
     expect(screen.getByLabelText('Valor')).toHaveValue('8.8.8.8')
     await user.click(screen.getByRole('button', { name: 'Registrar indicador' }))
@@ -168,10 +196,11 @@ describe('NEXO Intel', () => {
           : reply(201, { ...wannacryReport, id: 3, contenido: '# Informe regenerado', nivel_confianza: 0.6 }),
     })
 
+    await openAnalyze(user)
     await user.click(screen.getByLabelText(/Analizar automáticamente/))
     await registerIndicator(user, 'Hash', WANNACRY_HASH)
     expect(await screen.findByText('Sin enriquecimiento todavía')).toBeInTheDocument()
-    expect(paths()).toEqual(['GET /health', 'POST /indicators'])
+    expect(paths().filter((p) => p.startsWith('POST'))).toEqual(['POST /indicators'])
 
     await user.click(screen.getByRole('tab', { name: /MITRE ATT&CK/ }))
     expect(screen.getByRole('button', { name: 'Ejecutar correlación' })).toBeDisabled()
@@ -207,10 +236,11 @@ describe('NEXO Intel', () => {
       correlation: wannacryCorrelation,
       reports: [wannacryReport],
     })
-    const { user, paths } = renderApp({}, [saved])
+    const { user, paths } = renderApp({}, [saved], '#/investigaciones')
 
+    expect(list().getByText('Pendiente de validación')).toBeInTheDocument()
+    await user.click(list().getByRole('link', { name: /wannacry/ }))
     expect(await screen.findByRole('tab', { name: /Informe/, selected: true })).toBeInTheDocument()
-    expect(sidebar().getByText('Pendiente de validación')).toBeInTheDocument()
     expect(screen.getByText('Entrada original')).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /Enriquecimiento/ }))
@@ -223,7 +253,11 @@ describe('NEXO Intel', () => {
 
   it('marca la investigación cuando el backend ya no la tiene y permite quitarla', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
-    const { user } = renderApp({ 'POST /indicators/1/enrich': fail(404, 'Indicador no encontrado') }, [investigation()])
+    const { user } = renderApp(
+      { 'POST /indicators/1/enrich': fail(404, 'Indicador no encontrado') },
+      [investigation()],
+      '#/investigaciones/1',
+    )
 
     await user.click(await screen.findByRole('button', { name: 'Análisis completo' }))
 
@@ -232,23 +266,29 @@ describe('NEXO Intel', () => {
     expect(alerts).toHaveLength(2)
     expect(alerts[1]).toHaveTextContent('El recurso ya no existe en el backend')
     expect(within(alerts[1]).queryByRole('button', { name: 'Reintentar' })).toBeNull()
-    expect(sidebar().getByText('No existe en backend')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Análisis completo' })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Descartar aviso' }))
     expect(screen.getAllByRole('alert')).toHaveLength(1)
 
-    await user.click(screen.getByRole('button', { name: 'Quitar del historial' }))
+    await user.click(nav().getByRole('link', { name: /Investigaciones/ }))
+    expect(await list().findByText('No existe en backend')).toBeInTheDocument()
+    await user.click(list().getByRole('link', { name: /Hash/ }))
+
+    await user.click(await screen.findByRole('button', { name: 'Quitar del historial' }))
     expect(screen.getByText('Este indicador ya no existe en el backend')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Quitar del historial' }))
     expect(confirm).toHaveBeenCalledTimes(2)
-    expect(screen.getByText('Cómo funciona NEXO')).toBeInTheDocument()
+    // Al quitarla se vuelve a la lista, ya vacía.
+    expect(await screen.findByText(/Aún no hay investigaciones/)).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/investigaciones')
   })
 
   it('reporta los errores del registro de forma accionable', async () => {
     const { user } = renderApp(
       {
         'GET /health': new TypeError('Failed to fetch'),
+        'GET /status': new TypeError('Failed to fetch'),
         'POST /indicators': ({ body }) => {
           const { valor } = body as { valor: string }
           if (valor === 'no-es-ip') return fail(422, [{ loc: ['body'], msg: "Value error, 'no-es-ip' no tiene formato válido de tipo 'ip'" }])
@@ -258,8 +298,11 @@ describe('NEXO Intel', () => {
         },
       },
       [investigation({ indicator: benignIndicator, entrada: '8.8.8.8' }), investigation()],
+      '#/analizar',
     )
     expect(await screen.findByText('API fuera de línea')).toBeInTheDocument()
+    // Sin /status no se muestra el proveedor de IA (no se inventa).
+    expect(screen.queryByText(/IA:/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Registrar indicador' }))
     expect(screen.getByText('Escribe el valor del indicador.')).toBeInTheDocument()
@@ -278,53 +321,74 @@ describe('NEXO Intel', () => {
     expect(screen.queryByText('Backend inaccesible')).not.toBeInTheDocument()
 
     // 409 de un indicador que sí está en el historial local: se abre esa investigación.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('8.8.8.8')
     await registerIndicator(user, 'Hash', WANNACRY_HASH)
-    expect(await screen.findByText('Ese indicador ya estaba registrado.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
+    expect(window.location.hash).toBe('#/investigaciones/1')
   })
 
-  it('filtra y selecciona investigaciones del historial', async () => {
-    const scrollIntoView = vi.fn()
-    Element.prototype.scrollIntoView = scrollIntoView
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })))
+  it('detecta el tipo del indicador al pegarlo', async () => {
+    const { user } = renderApp({}, [], '#/analizar')
+    await user.click(screen.getByLabelText('Valor'))
+    await user.paste('hxxp://evil[.]example.com/payload')
+    expect(screen.getByRole('radio', { name: 'URL' })).toBeChecked()
+    await user.clear(screen.getByLabelText('Valor'))
+    await user.paste(WANNACRY_HASH)
+    expect(screen.getByRole('radio', { name: 'Hash' })).toBeChecked()
+    // Lo que no se reconoce no cambia la elección del analista.
+    await user.click(screen.getByRole('radio', { name: 'Dominio' }))
+    await user.clear(screen.getByLabelText('Valor'))
+    await user.paste('algo raro')
+    expect(screen.getByRole('radio', { name: 'Dominio' })).toBeChecked()
+  })
+
+  it('filtra la lista de investigaciones y abre la elegida', async () => {
     const resolved = investigation({ enrichment: wannacrySnapshot, correlation: wannacryCorrelation })
     const unresolved = investigation({ indicator: benignIndicator, entrada: '8.8.8.8', correlation: unresolvedCorrelation })
-    const { user } = renderApp({}, [unresolved, resolved])
+    const { user } = renderApp({}, [unresolved, resolved], '#/investigaciones')
 
-    expect(sidebar().getByText('Sin asociación')).toBeInTheDocument()
-    const search = sidebar().getByLabelText('Buscar investigaciones')
+    expect(nav().getByRole('link', { name: /Investigaciones/ })).toHaveAttribute('aria-current', 'page')
+    expect(list().getByText('Sin asociación')).toBeInTheDocument()
+    const search = list().getByLabelText('Buscar investigaciones')
     await user.type(search, 'WANNA')
-    expect(sidebar().queryByText('8.8.8.8')).not.toBeInTheDocument()
+    expect(list().queryByText('8.8.8.8')).not.toBeInTheDocument()
 
-    await user.click(sidebar().getByRole('button', { name: /wannacry/ }))
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
-    expect(sidebar().getByRole('button', { name: /wannacry/ })).toHaveAttribute('aria-current', 'true')
-    expect(scrollIntoView).toHaveBeenCalled()
+    await user.click(list().getByRole('link', { name: /wannacry/ }))
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(WANNACRY_HASH)
+    // El detalle sigue marcando "Investigaciones" en la navegación.
+    expect(nav().getByRole('link', { name: /Investigaciones/ })).toHaveAttribute('aria-current', 'page')
 
-    await user.clear(search)
-    await user.type(search, 'zzz')
-    expect(sidebar().getByText('Ninguna investigación coincide con “zzz”.')).toBeInTheDocument()
+    await user.click(nav().getByRole('link', { name: /Investigaciones/ }))
+    const search2 = await list().findByLabelText('Buscar investigaciones')
+    await user.type(search2, 'zzz')
+    expect(list().getByText('Ninguna investigación coincide con “zzz”.')).toBeInTheDocument()
+  })
+
+  it('explica cuando la investigación de la URL no está en este navegador', async () => {
+    renderApp({}, [], '#/investigaciones/99')
+    expect(await screen.findByText('La investigación #99 no está en este navegador')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver investigaciones' })).toHaveAttribute('href', '#/investigaciones')
   })
 
   it('muestra el avance de un paso en la lista mientras corre', async () => {
     const enrich = deferred<Reply>()
-    const { user } = renderApp({ 'POST /indicators/1/enrich': () => enrich.promise }, [investigation()])
+    const { user } = renderApp({ 'POST /indicators/1/enrich': () => enrich.promise }, [investigation()], '#/investigaciones/1')
 
     await user.click(await screen.findByRole('button', { name: 'Análisis completo' }))
-    expect(sidebar().getByText('Procesando')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Analizando/ })).toBeDisabled()
+    await user.click(nav().getByRole('link', { name: /Investigaciones/ }))
+    expect(await list().findByText('Procesando')).toBeInTheDocument()
 
     enrich.resolve(fail(500, 'Error interno del servidor'))
+    await vi.waitFor(() => expect(list().queryByText('Procesando')).not.toBeInTheDocument())
+    await user.click(list().getByRole('link', { name: /Hash/ }))
     expect(await screen.findByText('No se pudo enriquecer el indicador')).toBeInTheDocument()
-    expect(sidebar().queryByText('Procesando')).not.toBeInTheDocument()
   })
 
   it('avisa si el navegador no puede guardar el historial', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('quota', 'QuotaExceededError')
     })
-    renderApp()
+    renderApp({}, [], '#/investigaciones')
     expect(await screen.findByText('El historial no se está guardando')).toBeInTheDocument()
   })
 
@@ -333,7 +397,7 @@ describe('NEXO Intel', () => {
     const revokeObjectURL = vi.fn()
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }))
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    const { user } = renderApp({}, [investigation({ enrichment: wannacrySnapshot, reports: [wannacryReport] })])
+    const { user } = renderApp({}, [investigation({ enrichment: wannacrySnapshot, reports: [wannacryReport] })], '#/investigaciones/1')
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
 
     await user.click(await screen.findByRole('button', { name: 'Descargar .md' }))
@@ -343,5 +407,22 @@ describe('NEXO Intel', () => {
 
     await user.click(screen.getByRole('button', { name: 'Copiar informe en Markdown' }))
     expect(writeText).toHaveBeenCalledWith(wannacryReport.contenido)
+  })
+
+  it('alterna el tema y lo recuerda', async () => {
+    const { user } = renderApp()
+    await vi.waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'))
+    await user.click(screen.getByRole('button', { name: 'Cambiar a tema claro' }))
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(window.localStorage.getItem('nexo.tema')).toBe('light')
+    await user.click(screen.getByRole('button', { name: 'Cambiar a tema oscuro' }))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
+  it('el enlace de salto enfoca el contenido sin cambiar de vista', async () => {
+    const { user } = renderApp({}, [], '#/investigaciones')
+    await user.click(screen.getByRole('link', { name: 'Saltar al contenido' }))
+    expect(screen.getByRole('main')).toHaveFocus()
+    expect(window.location.hash).toBe('#/investigaciones')
   })
 })

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mockBackend, reply } from '../test/fakeBackend'
 import { useElapsedSeconds } from './useElapsedSeconds'
 import { useHealth } from './useHealth'
+import { parseRoute } from './useRoute'
 
 describe('useHealth', () => {
   it('pasa de "checking" a "online" cuando /health responde ok', async () => {
@@ -53,5 +54,23 @@ describe('useElapsedSeconds', () => {
 
     rerender({ active: false })
     expect(result.current).toBe(0)
+  })
+})
+
+describe('parseRoute', () => {
+  it.each([
+    ['', { view: 'panel' }],
+    ['#/', { view: 'panel' }],
+    ['#/analizar', { view: 'analizar' }],
+    ['#/investigaciones', { view: 'investigaciones' }],
+    ['#/investigaciones/', { view: 'investigaciones' }],
+    ['#/investigaciones/42', { view: 'investigacion', id: 42 }],
+    // Lo desconocido cae al panel en vez de romper la vista.
+    ['#/investigaciones/abc', { view: 'panel' }],
+    ['#/investigaciones/42/extra', { view: 'panel' }],
+    ['#/analizar/1', { view: 'panel' }],
+    ['#/otra', { view: 'panel' }],
+  ])('%s', (hash, route) => {
+    expect(parseRoute(hash)).toEqual(route)
   })
 })

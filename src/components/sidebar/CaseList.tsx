@@ -2,6 +2,7 @@ import { ArrowRight, FolderSearch, Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import { formatDateTime, indicatorTypeLabel, truncateMiddle } from '../../domain/format'
 import { investigationStatus, STATUS_LABEL, type Investigation } from '../../domain/investigation'
+import { rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
 import { STATUS_TONE } from '../tones'
@@ -17,15 +18,8 @@ function matches(inv: Investigation, query: string): boolean {
   )
 }
 
-/** En pantallas angostas el detalle queda debajo de la lista: se lleva al analista hasta él. */
-function revealDetail() {
-  if (window.matchMedia?.('(max-width: 960px)').matches) {
-    document.getElementById('case-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-}
-
 export function CaseList() {
-  const { items, selected, select, activityOf, persisted } = useInvestigations()
+  const { items, activityOf, persisted } = useInvestigations()
   const [query, setQuery] = useState('')
   const searchId = useId()
   const q = query.trim().toLowerCase()
@@ -59,7 +53,9 @@ export function CaseList() {
       </div>
 
       {items.length === 0 ? (
-        <p className={styles.empty}>Aún no hay investigaciones. Registra un indicador para empezar.</p>
+        <p className={styles.empty}>
+          Aún no hay investigaciones. <a href={rutas.analizar}>Analiza un indicador</a> para empezar.
+        </p>
       ) : visible.length === 0 ? (
         <p className={styles.empty}>Ninguna investigación coincide con “{query.trim()}”.</p>
       ) : (
@@ -71,15 +67,7 @@ export function CaseList() {
             const entity = inv.correlation?.entity
             return (
               <li key={id}>
-                <button
-                  type="button"
-                  className={styles.item}
-                  aria-current={selected?.indicator.id === id ? 'true' : undefined}
-                  onClick={() => {
-                    select(id)
-                    revealDetail()
-                  }}
-                >
+                <a className={styles.item} href={rutas.investigacion(id)}>
                   <span className={styles.row}>
                     <span className={styles.type}>
                       <IndicatorTypeIcon tipo={tipo} size={14} />
@@ -111,7 +99,7 @@ export function CaseList() {
                     </span>
                     <span className={styles.date}>{formatDateTime(inv.indicator.timestamp_ingesta)}</span>
                   </span>
-                </button>
+                </a>
               </li>
             )
           })}

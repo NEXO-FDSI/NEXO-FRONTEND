@@ -1,6 +1,7 @@
 import type {
   CorrelationResponse,
   Decision,
+  FuenteEnriquecimiento,
   IndicatorRead,
   OtxDetalle,
   ReportRead,
@@ -12,6 +13,8 @@ export interface EnrichmentSnapshot {
   fuente: string
   tiene_evidencia: boolean
   resumen: OtxSummary
+  /** Estado y resumen de cada fuente. Ausente en historiales guardados antes de la Fase 2. */
+  fuentes?: FuenteEnriquecimiento[]
   /** Respuesta cruda de OTX. Solo vive en memoria: no se persiste en el navegador. */
   detalle?: OtxDetalle
 }
