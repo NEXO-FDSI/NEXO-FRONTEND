@@ -57,4 +57,27 @@ describe('AiAnalysisPanel', () => {
     expect(screen.queryByText(/tokens/)).not.toBeInTheDocument()
     expect(screen.getByText(/no que sea correcta/)).toBeInTheDocument()
   })
+
+  it('dice cómo se eligieron las técnicas y muestra la similitud de cada una', () => {
+    renderIA({
+      seleccion: {
+        metodo: 'semantica',
+        consulta: 'Indicator of compromise: file hash linked to wannacry.',
+        motivo: null,
+        puntajes: { T1210: 0.7123 },
+      },
+    })
+    expect(screen.getByText(/ordenadas por afinidad semántica/)).toBeInTheDocument()
+    expect(screen.getByText('similitud 0.71')).toBeInTheDocument()
+  })
+
+  it('sin embeddings explica que se repartieron por táctica', () => {
+    renderIA({
+      seleccion: { metodo: 'por_tactica', consulta: 'x', motivo: 'no se obtuvo el embedding de la consulta', puntajes: {} },
+    })
+    expect(
+      screen.getByText('Técnicas de la entidad repartidas por táctica: no se obtuvo el embedding de la consulta.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/similitud/)).not.toBeInTheDocument()
+  })
 })
