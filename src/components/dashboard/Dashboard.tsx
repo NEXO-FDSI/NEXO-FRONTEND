@@ -129,16 +129,9 @@ function AttentionTable({ items }: { items: Investigation[] }) {
   )
 }
 
-/** Configuración (GET /status) + lo último observado en las investigaciones de este navegador. */
-function SourcesHealth({ items }: { items: Investigation[] }) {
+/** Fuentes configuradas y proveedor de IA activo, tal como los informa GET /status. */
+function SourcesHealth() {
   const status = useStatus()
-  // items va del más reciente al más antiguo: el primero que trae la fuente es su último estado.
-  const ultimo = (fuente: string) =>
-    items.flatMap((inv) => inv.enrichment?.fuentes ?? []).find((f) => f.fuente === fuente)
-  const ultimaIA = items
-    .flatMap((inv) => inv.reports.toReversed())
-    .map((r) => r.metadatos?.ia)
-    .find((ia) => ia?.proveedor)
 
   return (
     <Panel title="Fuentes y modelo" icon={<Activity aria-hidden="true" />}>
@@ -146,31 +139,18 @@ function SourcesHealth({ items }: { items: Investigation[] }) {
         <p className={styles.muted}>No se pudo consultar la configuración del backend (GET /status).</p>
       ) : (
         <ul className={styles.health}>
-          {status.fuentes.map((f) => {
-            const visto = ultimo(f.fuente)
-            return (
-              <li key={f.fuente}>
-                <span className={styles.healthName}>{f.etiqueta}</span>
-                <Badge tone={f.configurada ? 'success' : 'neutral'}>{f.configurada ? 'Configurada' : 'Sin clave'}</Badge>
-                <span className={styles.small}>
-                  {visto
-                    ? `Último: ${ESTADO_FUENTE_LABEL[visto.estado]}${visto.latencia_ms !== null ? ` · ${visto.latencia_ms} ms` : ''}`
-                    : 'Sin consultas en este navegador'}
-                </span>
-              </li>
-            )
-          })}
+          {status.fuentes.map((f) => (
+            <li key={f.fuente}>
+              <span className={styles.healthName}>{f.etiqueta}</span>
+              <Badge tone={f.configurada ? 'success' : 'neutral'}>{f.configurada ? 'Configurada' : 'Sin clave'}</Badge>
+            </li>
+          ))}
           <li>
             <span className={styles.healthName}>
               <Sparkles size={14} aria-hidden="true" className={styles.ai} /> IA
             </span>
             <span className="mono">
               {status.ia.proveedor} · {status.ia.modelo}
-            </span>
-            <span className={styles.small}>
-              {status.ia.respaldo ? `Respaldo: ${status.ia.respaldo.proveedor} · ${status.ia.respaldo.modelo}` : 'Sin respaldo'}
-              {ultimaIA &&
-                ` · último análisis: ${ultimaIA.proveedor} en ${ultimaIA.latencia_ms} ms${ultimaIA.intentos_fallidos.length ? ' (respaldo)' : ''}`}
             </span>
           </li>
         </ul>
@@ -262,7 +242,7 @@ export function Dashboard() {
             <AttentionTable items={visibles.slice(0, MAX_FILAS)} />
           </Panel>
           <div className={styles.side}>
-            <SourcesHealth items={items} />
+            <SourcesHealth />
             <TopTactics items={items} />
           </div>
         </div>

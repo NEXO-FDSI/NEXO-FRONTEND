@@ -1,9 +1,8 @@
-import { Braces, RefreshCw, ShieldQuestion } from 'lucide-react'
+import { ShieldQuestion } from 'lucide-react'
 import { formatDateTime } from '../../domain/format'
 import { MAX_INDICADORES_PULSE, type OtxPulse } from '../../domain/otx'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
-import { Button } from '../ui/Button'
 import { StepPrompt } from './StepPrompt'
 import type { CasePanelProps } from './types'
 import styles from './EnrichmentPanel.module.css'
@@ -81,7 +80,7 @@ export function EnrichmentPanel({ inv, activity, onRun }: CasePanelProps) {
     )
   }
 
-  const { resumen, detalle } = enrichment
+  const { resumen } = enrichment
   return (
     <div className={styles.panel}>
       <dl className={styles.stats}>
@@ -146,28 +145,6 @@ export function EnrichmentPanel({ inv, activity, onRun }: CasePanelProps) {
       ) : (
         <p className={styles.none}>Ningún pulse de OTX menciona este indicador.</p>
       )}
-
-      <details className={styles.raw}>
-        <summary>
-          <Braces size={15} aria-hidden="true" /> Respuesta cruda de OTX (JSON)
-        </summary>
-        {detalle ? (
-          <pre className={styles.json}>{JSON.stringify(detalle, null, 2)}</pre>
-        ) : (
-          <div className={styles.rawMissing}>
-            <p>La respuesta cruda no se guarda en el navegador para no llenar el almacenamiento local.</p>
-            <Button
-              size="sm"
-              icon={<RefreshCw size={14} aria-hidden="true" />}
-              loading={activity.running === 'enrich'}
-              disabled={activity.running !== null || inv.missing}
-              onClick={() => onRun('enrich')}
-            >
-              Recargar desde la caché del backend
-            </Button>
-          </div>
-        )}
-      </details>
     </div>
   )
 }

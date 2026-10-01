@@ -209,7 +209,7 @@ export const acceptedValidation: ValidationRead = {
   id: 1,
   report_id: 1,
   decision: 'aceptado',
-  analista: 'analista SOC N1',
+  analista: null, // sin login aún: el backend no recibe analista
   timestamp: '2026-09-22T17:51:39.380001Z',
 }
 
@@ -289,9 +289,9 @@ export const wannacrySnapshot = {
 
 export const statusResponse: StatusResponse = {
   fuentes: [
-    { fuente: 'alienvault_otx', etiqueta: 'AlienVault OTX', tipos: ['domain', 'hash', 'ip', 'url'], configurada: true },
-    { fuente: 'threatfox', etiqueta: 'ThreatFox', tipos: ['domain', 'hash', 'ip', 'url'], configurada: true },
-    { fuente: 'virustotal', etiqueta: 'VirusTotal', tipos: ['domain', 'hash', 'ip', 'url'], configurada: false },
+    { fuente: 'alienvault_otx', etiqueta: 'AlienVault OTX', configurada: true },
+    { fuente: 'threatfox', etiqueta: 'ThreatFox', configurada: true },
+    { fuente: 'virustotal', etiqueta: 'VirusTotal', configurada: false },
   ],
-  ia: { proveedor: 'groq', modelo: 'qwen/qwen3.8-27b', respaldo: { proveedor: 'ollama', modelo: 'qwen3:8b' } },
+  ia: { proveedor: 'groq', modelo: 'qwen/qwen3.8-27b' },
 }

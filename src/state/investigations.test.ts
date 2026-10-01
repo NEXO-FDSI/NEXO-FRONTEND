@@ -66,7 +66,7 @@ describe('investigationsReducer', () => {
     state = investigationsReducer(state, { type: 'validated', indicatorId: 1, validation: acceptedValidation })
 
     const inv = state.items.find((i) => i.indicator.id === 1)!
-    expect(inv.enrichment).toMatchObject({ tiene_evidencia: true, detalle: wannacryEnrichment.detalle })
+    expect(inv.enrichment).toMatchObject({ tiene_evidencia: true })
     expect(inv.enrichment?.resumen.pulseCount).toBe(50)
     expect(inv.correlation).toBe(wannacryCorrelation)
     expect(inv.reports).toEqual([wannacryReport])

@@ -133,6 +133,7 @@ describe('NEXO Intel', () => {
     expect(within(table).getByText('Volcado agregado')).toBeInTheDocument()
     expect(within(table).getByText('+2 más')).toBeInTheDocument()
     expect(screen.getByText(/mostrando 2 de 50/)).toBeInTheDocument()
+    expect(screen.queryByText(/Respuesta cruda de OTX/)).not.toBeInTheDocument()
 
     // ATT&CK: técnicas agrupadas por táctica en orden de kill chain.
     await user.click(screen.getByRole('tab', { name: /MITRE ATT&CK/ }))
@@ -156,21 +157,23 @@ describe('NEXO Intel', () => {
     await user.click(screen.getByRole('button', { name: 'Registrar decisión' }))
     expect(screen.getByText('Elige si aceptas o rechazas la asociación.')).toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: /Aceptar/ }))
-    await user.type(screen.getByLabelText(/Analista/), 'analista SOC N1')
+    expect(screen.queryByRole('textbox', { name: /Analista/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Registrar decisión' }))
 
     expect(await screen.findByText('Decisión registrada: aceptado.')).toBeInTheDocument()
     expect(screen.getByText('Estado: Aceptado')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Historial de decisiones' })).getByText('analista SOC N1')).toBeInTheDocument()
-    expect(calls.at(-1)).toMatchObject({ path: '/reports/1/validate', body: { decision: 'aceptado', analista: 'analista SOC N1' } })
-    expect(window.localStorage.getItem('nexo.analista')).toBe('analista SOC N1')
+    expect(within(screen.getByRole('region', { name: 'Historial de decisiones' })).getByText('Analista no identificado')).toBeInTheDocument()
+    expect(calls.at(-1)).toEqual({ method: 'POST', path: '/reports/1/validate', body: { decision: 'aceptado' } })
 
     await user.click(nav().getByRole('link', { name: /Panel/ }))
     const kpis = within(await screen.findByRole('region', { name: 'Resumen de investigaciones' }))
     expect(kpis.getByText('Críticas o altas').previousSibling).toHaveTextContent('1')
     expect(kpis.getByText('Pendientes de validación').previousSibling).toHaveTextContent('0')
+    // Fuentes y modelo: solo cada fuente con su configuración y el proveedor de IA activo.
+    expect(screen.getByText('groq · qwen/qwen3.8-27b')).toBeInTheDocument()
+    expect(screen.queryByText(/Último|Sin consultas|espaldo|último análisis/)).not.toBeInTheDocument()
     expect(JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)[0].validations).toHaveLength(1)
-    // Las fuentes del enriquecimiento se guardan (sin la respuesta cruda de OTX).
+    // Las fuentes del enriquecimiento se guardan; la respuesta de OTX no.
     const [guardada] = JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)
     expect(guardada.enrichment.fuentes.map((f: { estado: string }) => f.estado)).toEqual([
       'con_evidencia',
@@ -293,7 +296,7 @@ describe('NEXO Intel', () => {
     expect(screen.getByText('Informe #1')).toBeInTheDocument() // panel de validación, misma pestaña
   })
 
-  it('recupera el historial guardado y la respuesta cruda desde la caché del backend', async () => {
+  it('recupera el historial guardado y muestra OTX sin la respuesta cruda', async () => {
     const saved = investigation({
       enrichment: wannacrySnapshot,
       correlation: wannacryCorrelation,
@@ -307,11 +310,9 @@ describe('NEXO Intel', () => {
     expect(screen.getByText('Entrada original')).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
-    await user.click(screen.getByText(/Respuesta cruda de OTX/))
-    await user.click(screen.getByRole('button', { name: 'Recargar desde la caché del backend' }))
-
-    expect(await screen.findByText(/"pulse_info"/)).toBeInTheDocument()
-    expect(paths()).toContain('POST /indicators/1/enrich')
+    expect(await screen.findByRole('table', { name: /Pulses de OTX/ })).toBeInTheDocument()
+    expect(screen.queryByText(/Respuesta cruda de OTX|"pulse_info"/)).not.toBeInTheDocument()
+    expect(paths()).not.toContain('POST /indicators/1/enrich')
   })
 
   it('marca la investigación cuando el backend ya no la tiene', async () => {
@@ -439,7 +440,7 @@ describe('NEXO Intel', () => {
           reply(200, {
             items:
               query.get('page') === '1'
-                ? [{ indicator: benignIndicator, enrichment: { ...benignEnrichment, detalle_completo: false },
+                ? [{ indicator: benignIndicator, enrichment: benignEnrichment,
                      correlation: unresolvedCorrelation, reports: [], validations: [] }]
                 : [],
             page: Number(query.get('page')),
@@ -459,7 +460,7 @@ describe('NEXO Intel', () => {
     await vi.waitFor(() => expect(list().queryByText(/Hash · #1/)).not.toBeInTheDocument())
     expect(list().getByText('Sin asociación')).toBeInTheDocument()
     expect(paths()).toContain('GET /investigations')
-    // El crudo recortado del listado no se guarda como si fuera la respuesta completa de OTX.
+    // Del OTX recortado se guarda solo el resumen que usa la interfaz.
     const [guardada] = JSON.parse(window.localStorage.getItem('nexo.investigations.v1')!)
     expect(guardada.enrichment.resumen.validations).toHaveLength(2)
     expect(screen.queryByRole('region', { name: 'Registradas desde otros navegadores' })).not.toBeInTheDocument()

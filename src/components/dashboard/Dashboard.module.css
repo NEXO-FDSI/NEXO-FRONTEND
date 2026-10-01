@@ -164,10 +164,6 @@
   font-size: 0.86rem;
 }
 
-.health li > :last-child {
-  grid-column: 1 / -1;
-}
-
 .healthName {
   display: inline-flex;
   align-items: center;

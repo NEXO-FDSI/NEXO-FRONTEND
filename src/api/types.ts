@@ -21,7 +21,10 @@ export interface IndicatorRead {
   timestamp_ingesta: string
 }
 
-/** Respuesta cruda de OTX (`/indicators/{section}/{valor}/general`). Forma no garantizada. */
+/**
+ * Respuesta de OTX recortada por el backend (`recortar_otx`): `type`, `validation` y
+ * `pulse_info`. La cruda solo queda en la BD. Forma no garantizada.
+ */
 export type OtxDetalle = Record<string, unknown>
 
 /** Estado de una fuente en /enrich (app/enrichment/service.py). Un fallo nunca es "sin evidencia". */
@@ -68,8 +71,6 @@ export interface EnrichmentResponse {
   tiene_evidencia: boolean
   detalle: OtxDetalle
   fuentes: FuenteEnriquecimiento[]
-  /** false en GET /investigations: `detalle` viene recortado a lo que usa la interfaz. */
-  detalle_completo?: boolean
 }
 
 export interface EntityRef {
@@ -167,7 +168,6 @@ export type Decision = 'aceptado' | 'rechazado'
 /** Body de POST /reports/{id}/validate (HumanValidationRequest). */
 export interface ValidationRequest {
   decision: Decision
-  analista?: string | null
 }
 
 export interface ValidationRead {
@@ -210,10 +210,7 @@ export interface DeleteResponse {
 
 /** GET /status: qué fuentes y qué IA usará el pipeline. Sin secretos. */
 export interface StatusResponse {
-  fuentes: { fuente: string; etiqueta: string; tipos: string[]; configurada: boolean }[]
-  ia: {
-    proveedor: string
-    modelo: string
-    respaldo: { proveedor: string; modelo: string } | null
-  }
+  fuentes: { fuente: string; etiqueta: string; configurada: boolean }[]
+  /** Proveedor activo. El respaldo opera en el backend pero no se expone. */
+  ia: { proveedor: string; modelo: string }
 }

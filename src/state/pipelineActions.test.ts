@@ -99,7 +99,7 @@ describe('createPipelineActions', () => {
   it('registra la validación del analista y reporta su fallo', async () => {
     const { actions, dispatch } = setup()
 
-    expect(await actions.validate(1, 1, { decision: 'aceptado', analista: 'N1' })).toBe(true)
+    expect(await actions.validate(1, 1, { decision: 'aceptado' })).toBe(true)
     expect(dispatch).toHaveBeenLastCalledWith({ type: 'validated', indicatorId: 1, validation: acceptedValidation })
 
     const failing = setup({ 'POST /reports/1/validate': fail(404, 'Informe no encontrado') })

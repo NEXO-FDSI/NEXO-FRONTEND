@@ -6,7 +6,6 @@ import type { Investigation } from '../domain/investigation'
  * localStorage puede no existir o lanzar (modo privado, cuota): nunca se propaga.
  */
 const INVESTIGATIONS_KEY = 'nexo.investigations.v1'
-const ANALYST_KEY = 'nexo.analista'
 
 // Si el último guardado del historial funcionó. Es estado externo a React: la UI lo lee
 // con useSyncExternalStore para avisar al analista cuando el historial no persiste.
@@ -64,23 +63,11 @@ export function loadInvestigations(): Investigation[] {
   }
 }
 
-/** Guarda el historial sin la respuesta cruda de OTX, que puede pesar cientos de KB. */
 export function saveInvestigations(items: Investigation[]): boolean {
-  const durable = items.map((inv) =>
-    inv.enrichment ? { ...inv, enrichment: { ...inv.enrichment, detalle: undefined } } : inv,
-  )
-  const ok = write(INVESTIGATIONS_KEY, JSON.stringify(durable))
+  const ok = write(INVESTIGATIONS_KEY, JSON.stringify(items))
   if (ok !== historyPersisted) {
     historyPersisted = ok
     listeners.forEach((listener) => listener())
   }
   return ok
-}
-
-export function loadAnalyst(): string {
-  return read(ANALYST_KEY) ?? ''
-}
-
-export function saveAnalyst(name: string): void {
-  write(ANALYST_KEY, name)
 }

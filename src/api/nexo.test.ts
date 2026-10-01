@@ -18,7 +18,7 @@ describe('nexoApi', () => {
     await nexoApi.enrich(3)
     await nexoApi.correlate(3)
     await nexoApi.createReport(3)
-    await nexoApi.validateReport(5, { decision: 'rechazado', analista: 'N2' })
+    await nexoApi.validateReport(5, { decision: 'rechazado' })
 
     expect(calls).toEqual([
       { method: 'GET', path: '/health', body: undefined },
@@ -26,7 +26,7 @@ describe('nexoApi', () => {
       { method: 'POST', path: '/indicators/3/enrich', body: undefined },
       { method: 'POST', path: '/indicators/3/correlate', body: undefined },
       { method: 'POST', path: '/indicators/3/report', body: undefined },
-      { method: 'POST', path: '/reports/5/validate', body: { decision: 'rechazado', analista: 'N2' } },
+      { method: 'POST', path: '/reports/5/validate', body: { decision: 'rechazado' } },
     ])
   })
 })

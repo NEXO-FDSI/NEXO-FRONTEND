@@ -120,10 +120,6 @@ export function IndicatorForm() {
             aria-invalid={feedback?.tone === 'danger' || undefined}
             aria-describedby={feedback ? `${ids.hint} ${ids.feedback}` : ids.hint}
           />
-          <p id={ids.hint} className={styles.hint}>
-            El tipo se detecta al pegar el valor. Se aceptan valores defanged (<code>hxxp://</code>,{' '}
-            <code>[.]</code>): el backend los normaliza.
-          </p>
         </div>
 
         <div className={styles.field}>

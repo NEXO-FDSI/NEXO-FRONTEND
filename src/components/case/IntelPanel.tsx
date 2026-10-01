@@ -135,7 +135,7 @@ function SourceCard({ fuente }: { fuente: FuenteEnriquecimiento }) {
   )
 }
 
-/** Una tarjeta por fuente y, debajo, el detalle de OTX (pulses, validaciones, JSON crudo). */
+/** Una tarjeta por fuente y, debajo, el detalle de OTX (pulses y validaciones). */
 export function IntelPanel(props: CasePanelProps) {
   const fuentes = props.inv.enrichment?.fuentes ?? []
   return (

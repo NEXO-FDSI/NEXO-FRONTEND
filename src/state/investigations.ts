@@ -50,15 +50,13 @@ export function newInvestigation(indicator: IndicatorRead, entrada: string): Inv
 }
 
 function snapshotEnrichment(response: EnrichmentResponse) {
-  const { fuente, tiene_evidencia, detalle, fuentes, detalle_completo } = response
+  const { fuente, tiene_evidencia, detalle, fuentes } = response
   return {
     fuente,
     tiene_evidencia,
     resumen: summarizeOtx(detalle),
     // fuentes ?? []: un backend anterior a la Fase 2 no la envía.
     fuentes: fuentes ?? [],
-    // Recortado (listado paginado) no se guarda como crudo: el visor ofrece recargarlo.
-    detalle: detalle_completo === false ? undefined : detalle,
   }
 }
 

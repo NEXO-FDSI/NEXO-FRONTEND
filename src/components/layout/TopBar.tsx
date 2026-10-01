@@ -20,7 +20,6 @@ interface TopBarProps {
 export function TopBar({ theme, onToggleTheme }: TopBarProps) {
   const health = useHealth()
   const status = useStatus()
-  const respaldo = status?.ia.respaldo
 
   return (
     <header className={styles.bar}>
@@ -34,10 +33,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
           <span className={styles.pillText}>{HEALTH_LABEL[health]}</span>
         </span>
         {status && (
-          <span
-            className={`${styles.pill} ${styles.ia}`}
-            title={respaldo ? `Respaldo: ${respaldo.proveedor} · ${respaldo.modelo}` : 'Sin proveedor de respaldo'}
-          >
+          <span className={`${styles.pill} ${styles.ia}`}>
             <Sparkles size={14} aria-hidden="true" />
             <span className={styles.iaText}>
               IA: {status.ia.proveedor} · <span className="mono">{status.ia.modelo}</span>
