@@ -1,12 +1,20 @@
 import { Crosshair, ExternalLink } from 'lucide-react'
+import type { AnalisisIA } from '../../api/types'
 import { groupByTactic, techniqueUrl } from '../../domain/attck'
 import { Alert } from '../ui/Alert'
+import { Badge } from '../ui/Badge'
 import { StepPrompt } from './StepPrompt'
 import type { CasePanelProps } from './types'
 import styles from './AttackPanel.module.css'
 
-export function AttackPanel({ inv, activity, onRun }: CasePanelProps) {
+interface AttackPanelProps extends CasePanelProps {
+  /** Técnicas que el análisis de IA señaló como relevantes, con su motivo. */
+  destacadas?: AnalisisIA['tecnicas_destacadas']
+}
+
+export function AttackPanel({ inv, activity, onRun, destacadas = [] }: AttackPanelProps) {
   const correlation = inv.correlation
+  const motivoIA = new Map(destacadas.map((t) => [t.id, t.motivo]))
   if (!correlation) {
     return (
       <StepPrompt
@@ -41,6 +49,12 @@ export function AttackPanel({ inv, activity, onRun }: CasePanelProps) {
         <strong>{correlation.tecnicas.length}</strong> técnica(s) documentadas para{' '}
         <strong className={styles.entity}>{correlation.entity.nombre}</strong> en{' '}
         <strong>{groups.length}</strong> táctica(s). Fuente: MITRE ATT&amp;CK STIX, relación “uses”.
+        {motivoIA.size > 0 && (
+          <>
+            {' '}
+            La IA destacó <strong>{motivoIA.size}</strong> como relevante(s) para este indicador.
+          </>
+        )}
       </p>
       {groups.length === 0 ? (
         <p className={styles.summary}>ATT&amp;CK no documenta técnicas para esta entidad.</p>
@@ -63,6 +77,12 @@ export function AttackPanel({ inv, activity, onRun }: CasePanelProps) {
                     >
                       <span className={`${styles.id} mono`}>{tecnica.id}</span>
                       <span className={styles.name}>{tecnica.nombre}</span>
+                      {motivoIA.has(tecnica.id) && (
+                        <Badge tone="ai" title={motivoIA.get(tecnica.id)}>
+                          IA
+                          <span className="sr-only">: destacada por el análisis. {motivoIA.get(tecnica.id)}</span>
+                        </Badge>
+                      )}
                       <ExternalLink size={13} aria-hidden="true" className={styles.external} />
                       <span className="sr-only">(abre attack.mitre.org en una pestaña nueva)</span>
                     </a>

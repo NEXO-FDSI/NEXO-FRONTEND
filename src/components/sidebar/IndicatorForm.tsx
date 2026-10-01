@@ -2,8 +2,9 @@ import { Plus, ScanSearch } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import type { IndicatorTipo } from '../../api/types'
 import { describeFailure } from '../../domain/failures'
-import { INDICATOR_TYPES } from '../../domain/format'
+import { detectType, INDICATOR_TYPES } from '../../domain/format'
 import { findByInput } from '../../domain/investigation'
+import { navigate, rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import { Alert } from '../ui/Alert'
 import { Button } from '../ui/Button'
@@ -24,7 +25,7 @@ interface Feedback {
 }
 
 export function IndicatorForm() {
-  const { register, items, select } = useInvestigations()
+  const { register, items, locate } = useInvestigations()
   const [tipo, setTipo] = useState<IndicatorTipo>('ip')
   const [valor, setValor] = useState('')
   const [fuente, setFuente] = useState('')
@@ -47,30 +48,21 @@ export function IndicatorForm() {
     setSubmitting(false)
 
     if (result.ok) {
-      const { id, valor: canonico } = result.indicator
-      setValor('')
-      setFeedback({
-        tone: 'success',
-        title: `Indicador #${id} registrado.`,
-        text: canonico !== entrada ? (
-          <>
-            Forma canónica: <code>{canonico}</code>
-          </>
-        ) : null,
-      })
+      navigate(rutas.investigacion(result.indicator.id))
       return
     }
 
     if (result.error.status === 409) {
-      const existing = findByInput(items, tipo, entrada)
-      if (existing) {
-        select(existing.indicator.id)
-        setFeedback({ tone: 'info', title: 'Ese indicador ya estaba registrado.', text: 'Se abrió su investigación.' })
+      // Primero el historial local (sin red); si no está, se busca por valor en el backend:
+      // la página del caso lo reconstruye con GET /indicators/{id}.
+      const existingId = findByInput(items, tipo, entrada)?.indicator.id ?? (await locate(tipo, entrada))
+      if (existingId !== null) {
+        navigate(rutas.investigacion(existingId))
       } else {
         setFeedback({
           tone: 'danger',
           title: 'El indicador ya existe en el backend.',
-          text: 'No está en el historial de este navegador y la API no permite consultarlo por valor.',
+          text: 'No se pudo recuperar su investigación: la búsqueda por valor en el backend no respondió.',
         })
       }
       return
@@ -88,7 +80,7 @@ export function IndicatorForm() {
   }
 
   return (
-    <Panel title="Nuevo indicador" icon={<ScanSearch aria-hidden="true" />}>
+    <Panel title="Analizar indicador" icon={<ScanSearch aria-hidden="true" />}>
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <fieldset className={styles.types}>
           <legend className={styles.label}>Tipo</legend>
@@ -114,7 +106,12 @@ export function IndicatorForm() {
             id={ids.valor}
             className={`${styles.input} mono`}
             value={valor}
-            onChange={(e) => setValor(e.target.value)}
+            onChange={(e) => {
+              setValor(e.target.value)
+              // Preselecciona el tipo al pegar o escribir; el analista puede cambiarlo.
+              const detected = detectType(e.target.value)
+              if (detected) setTipo(detected)
+            }}
             placeholder={placeholder}
             autoComplete="off"
             spellCheck={false}
@@ -123,9 +120,6 @@ export function IndicatorForm() {
             aria-invalid={feedback?.tone === 'danger' || undefined}
             aria-describedby={feedback ? `${ids.hint} ${ids.feedback}` : ids.hint}
           />
-          <p id={ids.hint} className={styles.hint}>
-            Se aceptan valores defanged (<code>hxxp://</code>, <code>[.]</code>): el backend los normaliza.
-          </p>
         </div>
 
         <div className={styles.field}>
@@ -139,6 +133,7 @@ export function IndicatorForm() {
             onChange={(e) => setFuente(e.target.value)}
             placeholder="p. ej. reporte interno SOC"
             autoComplete="off"
+            maxLength={200}
           />
         </div>
 

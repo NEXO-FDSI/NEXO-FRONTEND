@@ -1,7 +1,7 @@
-import { ClipboardCheck, Crosshair, FileText, ShieldQuestion, Trash2, Zap } from 'lucide-react'
+import { Crosshair, FileText, LayoutList, ShieldQuestion, Sparkles, Trash2, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { describeFailure } from '../../domain/failures'
-import { formatDateTime, indicatorTypeLabel } from '../../domain/format'
+import { formatDateTime, indicatorTypeLabel, truncateMiddle } from '../../domain/format'
 import {
   AUTOMATIC_STEPS,
   investigationStatus,
@@ -12,40 +12,52 @@ import {
   type AutomaticStep,
   type Investigation,
 } from '../../domain/investigation'
+import { ESTADO_FUENTE_LABEL, sourceCoverage } from '../../domain/severity'
+import { navigate, rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
 import { STATUS_TONE } from '../tones'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { CopyButton } from '../ui/CopyButton'
 import { Panel } from '../ui/Panel'
 import { Tabs, type TabItem } from '../ui/Tabs'
+import { AiAnalysisPanel } from './AiAnalysisPanel'
 import { AttackPanel } from './AttackPanel'
-import { EnrichmentPanel } from './EnrichmentPanel'
-import { EvidenceChain } from './EvidenceChain'
+import { IntelPanel } from './IntelPanel'
 import { PipelineStepper } from './PipelineStepper'
 import { ReportPanel } from './ReportPanel'
+import { SeverityBadge, SourceChips } from './Signals'
+import { SummaryPanel } from './SummaryPanel'
 import { ValidationPanel } from './ValidationPanel'
 import styles from './CaseDetail.module.css'
 
-type TabId = 'enrichment' | 'attack' | 'report' | 'validation'
+type TabId = 'resumen' | 'inteligencia' | 'attack' | 'ia' | 'informe'
 
-/** Abre la pestaña del paso más avanzado que ya tiene resultado. */
+/**
+ * Un caso nuevo o con informe abre en el resumen (ahí se ve avanzar el análisis automático);
+ * uno a medias, en la pestaña del paso más avanzado que ya tiene resultado.
+ */
 function initialTab(inv: Investigation): TabId {
-  if (inv.reports.length > 0) return 'report'
+  if (inv.reports.length > 0) return 'resumen'
   if (inv.correlation) return 'attack'
-  return 'enrichment'
+  if (inv.enrichment) return 'inteligencia'
+  return 'resumen'
 }
 
 const AUTOMATIC_TAB: Record<AutomaticStep, TabId> = {
-  enrich: 'enrichment',
+  enrich: 'inteligencia',
   correlate: 'attack',
-  report: 'report',
+  report: 'informe',
 }
 
 export function CaseDetail({ inv }: { inv: Investigation }) {
-  const { activityOf, runStep, runAutomatic, validate, remove, dismissFailure } = useInvestigations()
+  const { activityOf, runStep, runAutomatic, validate, deleteIndicator, dismissFailure } = useInvestigations()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<TabId>(() => initialTab(inv))
   const [chosenReportId, setChosenReportId] = useState<number | null>(null)
 
@@ -58,6 +70,9 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
   const failure = activity.failure
   const failureText = failure && describeFailure(failure.step, failure.error)
   const retryStep = failure && isAutomaticStep(failure.step) && !inv.missing ? failure.step : null
+  const fuentes = inv.enrichment?.fuentes ?? []
+  const cobertura = sourceCoverage(fuentes)
+  const metadatos = report?.metadatos
 
   function run(step: AutomaticStep) {
     if (step === 'report') setChosenReportId(null) // mostrar el informe nuevo
@@ -66,50 +81,71 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
   }
 
   async function analyze() {
-    if (await runAutomatic(inv)) setTab('report')
+    if (await runAutomatic(inv)) setTab('resumen')
   }
 
-  function onRemove() {
-    const ok = window.confirm(
-      '¿Quitar esta investigación del historial de este navegador? El indicador sigue registrado en el backend.',
-    )
-    if (ok) remove(id)
+  function closeDialog() {
+    setConfirmingDelete(false)
+    setDeleteError(null)
+  }
+
+  async function confirmDelete() {
+    setDeleting(true)
+    setDeleteError(null)
+    const result = await deleteIndicator(id)
+    if (result.ok) {
+      navigate(rutas.investigaciones)
+      return
+    }
+    // El diálogo sigue abierto con el error: se puede reintentar o cancelar.
+    setDeleting(false)
+    setDeleteError(result.error.message)
   }
 
   const panelProps = { inv, activity, onRun: run }
   const tabs: TabItem<TabId>[] = [
     {
-      id: 'enrichment',
-      label: 'Enriquecimiento',
+      id: 'resumen',
+      label: 'Resumen',
+      icon: <LayoutList aria-hidden="true" />,
+      content: <SummaryPanel inv={inv} onOpenAnalysis={() => setTab('ia')} />,
+    },
+    {
+      id: 'inteligencia',
+      label: 'Inteligencia',
       icon: <ShieldQuestion aria-hidden="true" />,
-      count: inv.enrichment?.resumen.pulseCount,
-      content: <EnrichmentPanel {...panelProps} />,
+      count: inv.enrichment ? fuentes.filter((f) => f.estado === 'con_evidencia').length || undefined : undefined,
+      content: <IntelPanel {...panelProps} />,
     },
     {
       id: 'attack',
       label: 'MITRE ATT&CK',
       icon: <Crosshair aria-hidden="true" />,
       count: inv.correlation?.tecnicas.length,
-      content: <AttackPanel {...panelProps} />,
+      content: <AttackPanel {...panelProps} destacadas={metadatos?.ia.analisis?.tecnicas_destacadas ?? []} />,
     },
     {
-      id: 'report',
-      label: 'Informe',
+      id: 'ia',
+      label: 'Análisis IA',
+      icon: <Sparkles aria-hidden="true" />,
+      count: metadatos?.ia.analisis?.hallazgos.length,
+      content: <AiAnalysisPanel {...panelProps} report={report} />,
+    },
+    {
+      id: 'informe',
+      label: 'Informe y validación',
       icon: <FileText aria-hidden="true" />,
       count: inv.reports.length || undefined,
-      content: <ReportPanel {...panelProps} report={report} onSelectReport={setChosenReportId} />,
-    },
-    {
-      id: 'validation',
-      label: 'Validación',
-      icon: <ClipboardCheck aria-hidden="true" />,
       content: (
-        <ValidationPanel
-          inv={inv}
-          activity={activity}
-          report={report}
-          onValidate={(reportId, request) => validate(id, reportId, request)}
-        />
+        <div className={styles.stack}>
+          <ReportPanel {...panelProps} report={report} onSelectReport={setChosenReportId} />
+          <ValidationPanel
+            inv={inv}
+            activity={activity}
+            report={report}
+            onValidate={(reportId, request) => validate(id, reportId, request)}
+          />
+        </div>
       ),
     },
   ]
@@ -124,6 +160,7 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
                 {indicatorTypeLabel(tipo)}
               </Badge>
               <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>
+              <SeverityBadge nivel={metadatos?.severidad.nivel ?? null} />
             </div>
             <div className={styles.valueRow}>
               <h1 className={`${styles.value} mono`}>{valor}</h1>
@@ -149,6 +186,7 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
                 </div>
               )}
             </dl>
+            {fuentes.length > 0 && <SourceChips fuentes={fuentes} />}
           </div>
           <div className={styles.actions}>
             <Button
@@ -160,13 +198,19 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
             >
               {busy ? 'Analizando…' : 'Análisis completo'}
             </Button>
-            <Button variant="danger" size="sm" icon={<Trash2 size={14} aria-hidden="true" />} onClick={onRemove}>
-              Quitar del historial
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 size={14} aria-hidden="true" />}
+              disabled={busy}
+              onClick={() => setConfirmingDelete(true)}
+            >
+              Eliminar
             </Button>
           </div>
         </div>
 
-        {(inv.missing || failureText) && (
+        {(inv.missing || failureText || cobertura.fallidas.length > 0) && (
           <div className={styles.notices}>
             {inv.missing && (
               <Alert tone="warning" title="Este indicador ya no existe en el backend">
@@ -189,19 +233,67 @@ export function CaseDetail({ inv }: { inv: Investigation }) {
                 {failureText.hint}
               </Alert>
             )}
+            {cobertura.fallidas.length > 0 && (
+              <Alert
+                tone="info"
+                title={`Enriquecido con ${cobertura.conDatos} de ${cobertura.consultadas} fuentes`}
+                actions={
+                  <Button size="sm" onClick={() => run('enrich')} disabled={busy || inv.missing}>
+                    Reintentar fuentes
+                  </Button>
+                }
+              >
+                Sin datos de{' '}
+                {cobertura.fallidas.map((f) => `${f.etiqueta} (${ESTADO_FUENTE_LABEL[f.estado]})`).join(', ')}. El
+                resultado puede estar incompleto; "no respondió" no equivale a "sin evidencia".
+              </Alert>
+            )}
           </div>
         )}
 
         <div className={styles.stepper}>
-          <PipelineStepper inv={inv} activity={activity} onRun={run} onValidate={() => setTab('validation')} />
+          <PipelineStepper inv={inv} activity={activity} onRun={run} onValidate={() => setTab('informe')} />
         </div>
       </Panel>
-
-      <EvidenceChain inv={inv} />
 
       <Panel>
         <Tabs label="Resultados del pipeline" items={tabs} value={tab} onChange={setTab} />
       </Panel>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="¿Eliminar este indicador?"
+        confirmLabel="Eliminar definitivamente"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={closeDialog}
+      >
+        <p>
+          <span className={`${styles.dialogValue} mono`}>{truncateMiddle(valor, 52)}</span> se eliminará del backend
+          junto con todo lo que depende de él:
+        </p>
+        <ul className={styles.consequences}>
+          <li>
+            {inv.reports.length} versión(es) del informe, con su análisis de IA y su trazabilidad
+          </li>
+          <li>
+            {inv.validations.length} decisión(es) de analistas: <strong>se pierde ese historial de auditoría</strong>
+          </li>
+          <li>La caché de las fuentes de inteligencia consultadas (OTX, ThreatFox, VirusTotal)</li>
+          {inv.correlation?.entity && (
+            <li>
+              El vínculo con <strong>{inv.correlation.entity.nombre}</strong>; la entidad solo se borra si ningún otro
+              indicador la usa
+            </li>
+          )}
+        </ul>
+        <p className={styles.irreversible}>Esta acción no se puede deshacer.</p>
+        {deleteError && (
+          <Alert tone="danger" title="No se pudo eliminar el indicador">
+            {deleteError}
+          </Alert>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

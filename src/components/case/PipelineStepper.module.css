@@ -1,25 +1,23 @@
+/* Pipeline compacto: una fila de cinco pasos. La descripción queda solo para lectores de pantalla. */
 .stepper {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin: 0;
   padding: 0;
   list-style: none;
-  counter-reset: step;
 }
 
 .step {
   --tone: var(--color-text-subtle);
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 0.65rem;
-  row-gap: 0.55rem;
-  align-items: start;
-  padding: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.3rem 0.5rem;
   border: 1px solid var(--color-border);
-  border-top: 2px solid var(--tone);
+  border-bottom: 2px solid var(--tone);
   border-radius: var(--radius);
   background: var(--color-panel-sunken);
 }
@@ -27,32 +25,42 @@
 .done {
   --tone: var(--color-success);
 }
+
 .running {
   --tone: var(--color-accent);
 }
+
 .failed {
   --tone: var(--color-danger);
 }
+
 .ready {
   --tone: var(--color-info);
 }
+
 .locked {
   --tone: var(--color-border-strong);
 }
 
 .marker {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border: 1.5px solid var(--tone);
   border-radius: 50%;
   background: color-mix(in srgb, var(--tone) 14%, transparent);
   color: var(--tone);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
+}
+
+.marker svg {
+  width: 13px;
+  height: 13px;
 }
 
 .locked .marker {
@@ -61,12 +69,16 @@
 
 .text {
   display: grid;
+  flex: 1;
   min-width: 0;
 }
 
 .label {
+  overflow: hidden;
+  font-size: 0.85rem;
   font-weight: 600;
-  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .locked .label {
@@ -74,25 +86,24 @@
 }
 
 .description {
-  color: var(--color-text-subtle);
-  font-size: 0.78rem;
-  line-height: 1.35;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .action {
-  grid-column: 1 / -1;
+  flex-shrink: 0;
 }
 
 .action:empty {
   display: none;
 }
 
-.action button {
-  width: 100%;
-}
-
-@media (max-width: 1280px) {
+@media (max-width: 1100px) {
   .stepper {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   }
 }

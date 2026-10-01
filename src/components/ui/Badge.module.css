@@ -4,12 +4,12 @@
   align-items: center;
   gap: 0.35rem;
   max-width: 100%;
-  padding: 0.15rem 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 13%, transparent);
+  padding: 0.05rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
   color: var(--tone);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.5;
   white-space: nowrap;
@@ -43,4 +43,8 @@
 }
 .entity {
   --tone: var(--color-entity);
+}
+
+.ai {
+  --tone: var(--color-ai);
 }

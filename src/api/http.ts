@@ -34,7 +34,7 @@ interface RequestOptions {
 }
 
 export async function request<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   { body, timeoutMs = DEFAULT_TIMEOUT_MS }: RequestOptions = {},
 ): Promise<T> {

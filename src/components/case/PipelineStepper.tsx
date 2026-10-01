@@ -71,7 +71,7 @@ export function PipelineStepper({ inv, activity, onRun, onValidate }: PipelineSt
       {PIPELINE_STEPS.map((step, index) => {
         const state = stepState(inv, activity, step.id)
         return (
-          <li key={step.id} className={`${styles.step} ${styles[state]}`}>
+          <li key={step.id} className={`${styles.step} ${styles[state]}`} title={step.description}>
             <span className={styles.marker} aria-hidden="true">
               {state === 'done' && <Check size={15} />}
               {state === 'running' && <Spinner size={14} />}

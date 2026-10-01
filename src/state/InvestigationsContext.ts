@@ -3,14 +3,18 @@ import type { Investigation } from '../domain/investigation'
 import type { CaseActivity } from './investigations'
 import type { PipelineActions } from './pipelineActions'
 
+export type Sincronizacion =
+  | { estado: 'sincronizando'; pagina: number; paginas: number }
+  | { estado: 'listo' }
+  | { estado: 'error'; mensaje: string }
+
 export interface InvestigationsContextValue extends PipelineActions {
   items: Investigation[]
-  selected: Investigation | null
   /** false si el navegador no pudo guardar el historial (modo privado, cuota llena). */
   persisted: boolean
+  /** Estado de la sincronización inicial con el backend (fuente de verdad). */
+  sincronizacion: Sincronizacion
   activityOf(indicatorId: number): CaseActivity
-  select(indicatorId: number): void
-  remove(indicatorId: number): void
   dismissFailure(indicatorId: number): void
 }
 

@@ -1,10 +1,9 @@
 import { CircleCheck, CircleX, ClipboardCheck, History } from 'lucide-react'
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import type { Decision, ReportRead, ValidationRequest } from '../../api/types'
 import { formatDateTime, formatPercent } from '../../domain/format'
 import { currentDecision, STATUS_LABEL, validationsFor, type Investigation } from '../../domain/investigation'
 import type { CaseActivity } from '../../state/investigations'
-import { loadAnalyst, saveAnalyst } from '../../state/storage'
 import { STATUS_TONE } from '../tones'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
@@ -36,9 +35,7 @@ interface ValidationPanelProps {
 
 export function ValidationPanel({ inv, activity, report, onValidate }: ValidationPanelProps) {
   const [decision, setDecision] = useState<Decision | null>(null)
-  const [analista, setAnalista] = useState(loadAnalyst)
   const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
-  const analystId = useId()
 
   if (!report) {
     return (
@@ -59,10 +56,9 @@ export function ValidationPanel({ inv, activity, report, onValidate }: Validatio
       setMessage({ tone: 'danger', text: 'Elige si aceptas o rechazas la asociación.' })
       return
     }
-    const name = analista.trim()
-    saveAnalyst(name)
     setMessage(null)
-    if (await onValidate(reportId, { decision, analista: name || null })) {
+    // ponytail: sin analista; lo asignará el backend cuando exista el login.
+    if (await onValidate(reportId, { decision })) {
       setDecision(null)
       setMessage({ tone: 'success', text: `Decisión registrada: ${STATUS_LABEL[decision].toLowerCase()}.` })
     }
@@ -102,19 +98,6 @@ export function ValidationPanel({ inv, activity, report, onValidate }: Validatio
             </label>
           ))}
         </fieldset>
-
-        <div className={styles.field}>
-          <label htmlFor={analystId}>
-            Analista <span className={styles.optional}>(opcional)</span>
-          </label>
-          <input
-            id={analystId}
-            value={analista}
-            onChange={(e) => setAnalista(e.target.value)}
-            placeholder="p. ej. analista SOC N1"
-            autoComplete="off"
-          />
-        </div>
 
         <div className={styles.submit}>
           <Button

@@ -1,8 +1,8 @@
 import type {
   CorrelationResponse,
   Decision,
+  FuenteEnriquecimiento,
   IndicatorRead,
-  OtxDetalle,
   ReportRead,
   ValidationRead,
 } from '../api/types'
@@ -12,8 +12,8 @@ export interface EnrichmentSnapshot {
   fuente: string
   tiene_evidencia: boolean
   resumen: OtxSummary
-  /** Respuesta cruda de OTX. Solo vive en memoria: no se persiste en el navegador. */
-  detalle?: OtxDetalle
+  /** Estado y resumen de cada fuente. Ausente en historiales guardados antes de la Fase 2. */
+  fuentes?: FuenteEnriquecimiento[]
 }
 
 /**

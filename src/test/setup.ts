@@ -8,4 +8,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   window.localStorage.clear()
+  // Router por hash y tema viven en window/document: cada test empieza en el panel, oscuro.
+  window.history.replaceState(null, '', '/')
+  delete document.documentElement.dataset.theme
 })

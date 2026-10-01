@@ -43,8 +43,8 @@ function ReportProgress({ seconds }: { seconds: number }) {
       <div>
         <p className={styles.progressTitle}>Generando informe… {seconds} s</p>
         <p className={styles.progressText}>
-          El análisis narrativo (LLM + RAG) puede tardar hasta ~60 s. Si el modelo no responde, el
-          informe se genera igual sin ese apartado.
+          Con Groq el análisis tarda unos segundos; si responde el modelo local de respaldo, hasta un minuto.
+          Si ningún modelo responde, el informe se genera igual sin ese apartado.
         </p>
       </div>
     </div>
@@ -109,11 +109,6 @@ export function ReportPanel({ inv, activity, onRun, report, onSelectReport }: Re
           </Button>
         </div>
       </div>
-
-      <p className={styles.note}>
-        El apartado “Estado de validación” del informe refleja el momento de su generación; el estado
-        vigente es el de la pestaña Validación.
-      </p>
 
       <article className={styles.markdown}>
         <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>

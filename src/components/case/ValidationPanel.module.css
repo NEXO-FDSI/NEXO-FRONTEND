@@ -111,37 +111,6 @@
   font-size: 0.86rem;
 }
 
-.field {
-  display: grid;
-  gap: 0.35rem;
-  max-width: 420px;
-}
-
-.field label {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.optional {
-  color: var(--color-text-subtle);
-  font-weight: 400;
-}
-
-.field input {
-  min-height: 42px;
-  padding: 0 0.8rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-panel-sunken);
-}
-
-.field input:focus-visible {
-  outline: 2px solid var(--color-info);
-  outline-offset: 2px;
-  border-color: var(--color-info);
-}
-
 .submit {
   display: flex;
   flex-wrap: wrap;

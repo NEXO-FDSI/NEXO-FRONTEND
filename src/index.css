@@ -1,51 +1,101 @@
+/*
+ * Tokens de NEXO. Oscuro por defecto; claro con <html data-theme="light">.
+ * El color codifica procedencia y severidad, nunca decoración: --color-ai se reserva
+ * para lo que redacta el modelo. Contraste verificado (WCAG AA): todo texto ≥ 4.5:1
+ * sobre panel y fondo; --color-border-strong (inputs) ≥ 3:1.
+ */
 :root {
-  --color-bg: #f5f5f7;
+  --color-bg: #0b0f14;
+  --color-panel: #11161d;
+  --color-panel-raised: #161d26;
+  --color-panel-sunken: #0e131a;
+  --color-border: #2a3441;
+  --color-border-strong: #5b6779;
+
+  --color-text: #e6eaf0;
+  --color-text-muted: #9aa4b2;
+  --color-text-subtle: #808b99;
+
+  --color-accent: #4c8dff;
+  --color-accent-hover: #6ba0ff;
+  --color-on-accent: #0b0f14;
+  --color-info: #58a6ff;
+  --color-success: #3fb950;
+  --color-warning: #d29922;
+  --color-danger: #f85149;
+  --color-on-danger: #0b0f14; /* 5,7:1; el blanco daría 3,4 */
+  --color-entity: #b4a7ff;
+  --color-ai: #a78bfa;
+
+  --sev-critica: #f85149;
+  --sev-alta: #f0883e;
+  --sev-media: #d29922;
+  --sev-baja: #8b949e;
+  --sev-benigno: #3fb950;
+  --sev-indeterminada: #8b949e;
+
+  --shadow-panel: none;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #f5f7fa;
   --color-panel: #ffffff;
-  --color-panel-raised: #f5f5f7;
-  --color-panel-sunken: #f5f5f7;
-  --color-border: #d6d6d6;
-  --color-border-strong: #707070;
+  --color-panel-raised: #f3f5f8;
+  --color-panel-sunken: #f7f9fb;
+  --color-border: #d6dde6;
+  --color-border-strong: #8190a5;
 
-  --color-text: #1d1d1f;
-  --color-text-muted: #474747;
-  --color-text-subtle: #707070;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #5f6b7c;
 
-  --color-accent: #0071e3;
-  --color-accent-hover: #0066cc;
+  --color-accent: #1f64d8;
+  --color-accent-hover: #1a56bb;
   --color-on-accent: #ffffff;
-  --color-info: #0066cc;
-  --color-success: #03873a;
-  --color-warning: #ed6300;
-  --color-danger: #b42318;
-  --color-entity: #8668ff;
+  --color-info: #0a5fc4;
+  --color-success: #1a7f37;
+  --color-warning: #9a6700;
+  --color-danger: #c42b2b;
+  --color-on-danger: #ffffff;
+  --color-entity: #5b3cc4;
+  --color-ai: #6d28d9;
 
+  --sev-critica: #c42b2b;
+  --sev-alta: #b54708;
+  --sev-media: #9a6700;
+  --sev-baja: #5f6b7c;
+  --sev-benigno: #1a7f37;
+  --sev-indeterminada: #5f6b7c;
+
+  --shadow-panel: 0 1px 2px rgb(15 23 42 / 0.06);
+
+  color-scheme: light;
+}
+
+:root {
   --font-sans: 'Fira Sans', system-ui, 'Segoe UI', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, Consolas, monospace;
 
-  --radius-sm: 10px;
-  --radius: 28px;
-  --radius-lg: 28px;
-  --shadow-panel: none;
-  --ease: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --ease: 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --z-header: 20;
 
-  --header-height: 60px;
-  --sidebar-width: 380px;
+  --header-height: 52px;
+  --sidebar-width: 216px;
 
-  color-scheme: light;
-  font: 400 16px/1.47 var(--font-sans);
+  /* 14 px de base: densidad de consola de operación, no de página de lectura. */
+  font: 400 14px/1.5 var(--font-sans);
   color: var(--color-text);
   background: var(--color-bg);
   font-synthesis: none;
+  font-variant-numeric: tabular-nums;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (max-width: 640px) {
-  :root {
-    font-size: 16px;
-  }
 }
 
 *,
@@ -98,12 +148,12 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-info);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 .sr-only {

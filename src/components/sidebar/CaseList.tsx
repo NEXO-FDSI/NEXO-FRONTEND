@@ -1,12 +1,14 @@
-import { ArrowRight, FolderSearch, Search } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, FolderSearch, Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import { formatDateTime, indicatorTypeLabel, truncateMiddle } from '../../domain/format'
 import { investigationStatus, STATUS_LABEL, type Investigation } from '../../domain/investigation'
+import { rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
 import { STATUS_TONE } from '../tones'
 import { Alert } from '../ui/Alert'
 import { Badge } from '../ui/Badge'
+import { Button } from '../ui/Button'
 import { Panel } from '../ui/Panel'
 import { Spinner } from '../ui/Spinner'
 import styles from './CaseList.module.css'
@@ -17,19 +19,19 @@ function matches(inv: Investigation, query: string): boolean {
   )
 }
 
-/** En pantallas angostas el detalle queda debajo de la lista: se lleva al analista hasta él. */
-function revealDetail() {
-  if (window.matchMedia?.('(max-width: 960px)').matches) {
-    document.getElementById('case-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-}
+const POR_PAGINA = 10
 
 export function CaseList() {
-  const { items, selected, select, activityOf, persisted } = useInvestigations()
+  const { items, activityOf, persisted, sincronizacion } = useInvestigations()
   const [query, setQuery] = useState('')
+  const [pagina, setPagina] = useState(1)
   const searchId = useId()
   const q = query.trim().toLowerCase()
-  const visible = q ? items.filter((inv) => matches(inv, q)) : items
+  const filtradas = q ? items.filter((inv) => matches(inv, q)) : items
+  const paginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA))
+  // Si la lista se achica (búsqueda, eliminación, sincronización) la página se ajusta sola.
+  const actual = Math.min(pagina, paginas)
+  const visible = filtradas.slice((actual - 1) * POR_PAGINA, actual * POR_PAGINA)
 
   return (
     <Panel
@@ -38,6 +40,19 @@ export function CaseList() {
       actions={<Badge>{items.length}</Badge>}
       className={styles.panel}
     >
+      {sincronizacion.estado === 'sincronizando' && (
+        <p className={styles.sync} role="status">
+          <Spinner size={13} />
+          {sincronizacion.paginas > 1
+            ? `Cargando investigaciones de la plataforma: página ${sincronizacion.pagina} de ${sincronizacion.paginas}…`
+            : 'Sincronizando con el backend…'}
+        </p>
+      )}
+      {sincronizacion.estado === 'error' && (
+        <Alert tone="warning" title="No se pudo sincronizar con el backend">
+          Se muestran las investigaciones guardadas en este navegador. {sincronizacion.mensaje}
+        </Alert>
+      )}
       {!persisted && (
         <Alert tone="warning" title="El historial no se está guardando">
           El navegador rechazó el almacenamiento local; los resultados se perderán al recargar.
@@ -53,13 +68,18 @@ export function CaseList() {
           id={searchId}
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setPagina(1)
+          }}
           placeholder="Valor, entidad o fuente"
         />
       </div>
 
       {items.length === 0 ? (
-        <p className={styles.empty}>Aún no hay investigaciones. Registra un indicador para empezar.</p>
+        <p className={styles.empty}>
+          Aún no hay investigaciones. <a href={rutas.analizar}>Analiza un indicador</a> para empezar.
+        </p>
       ) : visible.length === 0 ? (
         <p className={styles.empty}>Ninguna investigación coincide con “{query.trim()}”.</p>
       ) : (
@@ -71,15 +91,7 @@ export function CaseList() {
             const entity = inv.correlation?.entity
             return (
               <li key={id}>
-                <button
-                  type="button"
-                  className={styles.item}
-                  aria-current={selected?.indicator.id === id ? 'true' : undefined}
-                  onClick={() => {
-                    select(id)
-                    revealDetail()
-                  }}
-                >
+                <a className={styles.item} href={rutas.investigacion(id)}>
                   <span className={styles.row}>
                     <span className={styles.type}>
                       <IndicatorTypeIcon tipo={tipo} size={14} />
@@ -111,11 +123,31 @@ export function CaseList() {
                     </span>
                     <span className={styles.date}>{formatDateTime(inv.indicator.timestamp_ingesta)}</span>
                   </span>
-                </button>
+                </a>
               </li>
             )
           })}
         </ul>
+      )}
+      {paginas > 1 && (
+        <nav className={styles.pager} aria-label="Paginación de investigaciones">
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<ChevronLeft size={14} aria-hidden="true" />}
+            disabled={actual === 1}
+            onClick={() => setPagina(actual - 1)}
+          >
+            Anterior
+          </Button>
+          <span className={styles.pageInfo} aria-live="polite">
+            Página {actual} de {paginas} · {filtradas.length} investigaciones
+          </span>
+          <Button size="sm" variant="ghost" disabled={actual === paginas} onClick={() => setPagina(actual + 1)}>
+            Siguiente
+            <ChevronRight size={14} aria-hidden="true" />
+          </Button>
+        </nav>
       )}
     </Panel>
   )

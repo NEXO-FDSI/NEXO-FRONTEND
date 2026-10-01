@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { investigation, wannacryEnrichment, wannacrySnapshot } from '../test/fixtures'
+import { investigation, wannacrySnapshot } from '../test/fixtures'
 import {
   isHistoryPersisted,
-  loadAnalyst,
   loadInvestigations,
-  saveAnalyst,
   saveInvestigations,
   subscribeHistoryPersisted,
 } from './storage'
@@ -12,13 +10,12 @@ import {
 const KEY = 'nexo.investigations.v1'
 
 describe('historial local', () => {
-  it('guarda y recupera investigaciones sin la respuesta cruda de OTX', () => {
-    const inv = investigation({ enrichment: { ...wannacrySnapshot, detalle: wannacryEnrichment.detalle } })
+  it('guarda y recupera investigaciones', () => {
+    const inv = investigation({ enrichment: wannacrySnapshot })
 
     expect(saveInvestigations([inv, investigation({ indicator: { ...inv.indicator, id: 9 } })])).toBe(true)
 
     const [loaded, plain] = loadInvestigations()
-    expect(loaded.enrichment?.detalle).toBeUndefined()
     expect(loaded.enrichment?.resumen).toEqual(wannacrySnapshot.resumen)
     expect(plain.enrichment).toBeNull()
   })
@@ -42,7 +39,6 @@ describe('historial local', () => {
       throw new Error('SecurityError')
     })
     expect(loadInvestigations()).toEqual([])
-    expect(loadAnalyst()).toBe('')
   })
 
   it('notifica cuando el historial deja de guardarse y cuando se recupera', () => {
@@ -64,11 +60,5 @@ describe('historial local', () => {
     unsubscribe()
     saveInvestigations([])
     expect(listener).toHaveBeenCalledTimes(2)
-  })
-
-  it('recuerda el nombre del analista', () => {
-    expect(loadAnalyst()).toBe('')
-    saveAnalyst('analista SOC N2')
-    expect(loadAnalyst()).toBe('analista SOC N2')
   })
 })
