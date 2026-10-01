@@ -84,8 +84,44 @@ describe('NEXO Intel', () => {
       fuente: null,
     })
 
-    // Enriquecimiento: pulses, volcado agregado descartado y tags resumidos.
-    await user.click(screen.getByRole('tab', { name: /Enriquecimiento/ }))
+    // Cabecera: severidad y estado de cada fuente.
+    // En la cabecera del caso y en el resumen.
+    expect(await screen.findAllByText('Crítica')).toHaveLength(2)
+    const chips = within(screen.getByRole('list', { name: 'Estado de las fuentes' }))
+    expect(chips.getByText('VirusTotal').parentElement).toHaveTextContent('VirusTotalcon registros')
+    expect(chips.getByText('ThreatFox').parentElement).toHaveTextContent('ThreatFoxsin registros')
+
+    // Resumen: motivos de la severidad, concordancia entre fuentes y resumen de la IA.
+    const resumen = within(screen.getByRole('tabpanel'))
+    expect(resumen.getByText('VirusTotal: 69 motores maliciosos, 0 sospechosos')).toBeInTheDocument()
+    expect(resumen.getByText('VirusTotal concuerda: sus familias apuntan a wannacry.')).toBeInTheDocument()
+    expect(resumen.getByRole('region', { name: 'Resumen de la IA' })).toHaveTextContent('ransomware gusano')
+
+    // Análisis IA: cada cita resalta su bloque en el contexto enviado al modelo.
+    await user.click(resumen.getByRole('button', { name: 'Ver análisis y trazabilidad' }))
+    expect(screen.getByRole('tab', { name: /Análisis IA/, selected: true })).toBeInTheDocument()
+    const contexto = within(screen.getByRole('region', { name: 'Contexto enviado al modelo' }))
+    const bloqueVT = contexto.getByText('E-VT').closest('li')!
+    expect(bloqueVT).not.toHaveAttribute('aria-current')
+    const [citaVT] = screen.getAllByRole('button', { name: 'Ver la fuente E-VT en el contexto' })
+    await user.click(citaVT)
+    expect(citaVT).toHaveAttribute('aria-pressed', 'true')
+    expect(bloqueVT).toHaveAttribute('aria-current', 'true')
+    await user.click(citaVT)
+    expect(bloqueVT).not.toHaveAttribute('aria-current')
+    expect(screen.getByText('Hipótesis')).toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel')).getByText('qwen/qwen3.8-27b')).toBeInTheDocument()
+    expect(screen.getByText('2013 + 541 tokens')).toBeInTheDocument()
+    expect(screen.getByText('0 afirmaciones descartadas')).toBeInTheDocument()
+    expect(screen.getByText('Ver el prompt exacto')).toBeInTheDocument()
+
+    // Inteligencia: una tarjeta por fuente y el detalle de OTX (pulses, volcado descartado, tags).
+    await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
+    expect(within(screen.getByRole('region', { name: 'VirusTotal' })).getByRole('img')).toHaveAccessibleName(
+      '69 de 71 motores maliciosos, 0 sospechosos',
+    )
+    expect(within(screen.getByRole('region', { name: 'AlienVault OTX' })).getByText(/1 volcados masivos ignorados/)).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'ThreatFox' })).getByText(/no tiene registros de este indicador/)).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: /Pulses de OTX/ })
     expect(within(table).getByText('WannaCry Indicators')).toBeInTheDocument()
     expect(within(table).getByText('Volcado agregado')).toBeInTheDocument()
@@ -100,6 +136,9 @@ describe('NEXO Intel', () => {
       'href',
       'https://attack.mitre.org/techniques/T1210/',
     )
+    // La IA destacó T1210: se marca con su motivo, sin cambiar la lista determinística.
+    expect(screen.getByRole('link', { name: /T1210/ })).toHaveTextContent('destacada por el análisis')
+    expect(screen.getByRole('link', { name: /T1486/ })).not.toHaveTextContent('IA')
 
     // Informe en Markdown, con la tabla y enlaces aislados.
     await user.click(screen.getByRole('tab', { name: /Informe/ }))
@@ -135,7 +174,7 @@ describe('NEXO Intel', () => {
   })
 
   it('declara "sin asociación" para un indicador benigno y no atribuye técnicas', async () => {
-    const { user } = renderApp({
+    const { user, paths } = renderApp({
       'POST /indicators': reply(201, benignIndicator),
       'POST /indicators/2/enrich': reply(200, benignEnrichment),
       'POST /indicators/2/correlate': reply(200, unresolvedCorrelation),
@@ -150,14 +189,28 @@ describe('NEXO Intel', () => {
     expect(await chain().findByText('Sin asociación')).toBeInTheDocument()
     expect(chain().getByText('No se ejecuta')).toBeInTheDocument()
     expect(screen.getByText(/La ausencia de asociación es un resultado válido/)).toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: /Enriquecimiento/ }))
+    // Cobertura parcial: VirusTotal alcanzó su cuota; ThreatFox no configurada no cuenta.
+    expect(screen.getByText('Enriquecido con 1 de 2 fuentes')).toBeInTheDocument()
+    expect(screen.getByText(/VirusTotal \(límite de cuota\)/)).toBeInTheDocument()
+    // Reintentar solo vuelve a pedir /enrich: el backend reutiliza la caché de lo que respondió.
+    const enrichCalls = () => paths().filter((p) => p === 'POST /indicators/2/enrich').length
+    expect(enrichCalls()).toBe(1)
+    await user.click(screen.getByRole('button', { name: 'Reintentar fuentes' }))
+    await vi.waitFor(() => expect(enrichCalls()).toBe(2))
+
+    await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
+    expect(within(screen.getByRole('region', { name: 'VirusTotal' })).getByText(/NO significa "sin evidencia"/)).toBeInTheDocument()
     expect(await screen.findByText('Whitelisted IP')).toBeInTheDocument()
     expect(screen.getByText('Ningún pulse de OTX menciona este indicador.')).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /MITRE ATT&CK/ }))
     expect(screen.getByText('Sin técnicas atribuidas')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /Validación/ }))
+    // Informe sin metadatos (anterior a la Fase 4): se explica en vez de romperse.
+    await user.click(screen.getByRole('tab', { name: /Análisis IA/ }))
+    expect(screen.getByText('Informe anterior a la trazabilidad de IA')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /Informe y validación/ }))
     expect(await screen.findByText('ninguna')).toBeInTheDocument()
   })
 
@@ -181,7 +234,7 @@ describe('NEXO Intel', () => {
     await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Análisis completo' }))
-    expect(await screen.findByRole('tab', { name: /Informe/, selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: /Resumen/, selected: true })).toBeInTheDocument()
     expect(paths()).toContain('POST /indicators/1/report')
     expect(screen.getByRole('button', { name: 'Análisis completo' })).toBeDisabled()
   })
@@ -199,6 +252,7 @@ describe('NEXO Intel', () => {
     await openAnalyze(user)
     await user.click(screen.getByLabelText(/Analizar automáticamente/))
     await registerIndicator(user, 'Hash', WANNACRY_HASH)
+    await user.click(await screen.findByRole('tab', { name: /Inteligencia/ }))
     expect(await screen.findByText('Sin enriquecimiento todavía')).toBeInTheDocument()
     expect(paths().filter((p) => p.startsWith('POST'))).toEqual(['POST /indicators'])
 
@@ -206,7 +260,10 @@ describe('NEXO Intel', () => {
     expect(screen.getByRole('button', { name: 'Ejecutar correlación' })).toBeDisabled()
     expect(screen.getByText('Requiere completar antes el enriquecimiento.')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /Enriquecimiento/ }))
+    await user.click(screen.getByRole('tab', { name: /Análisis IA/ }))
+    expect(screen.getByText('Sin análisis todavía')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
     await user.click(screen.getByRole('button', { name: 'Ejecutar enriquecimiento' }))
     expect(await screen.findByRole('table', { name: /Pulses de OTX/ })).toBeInTheDocument()
 
@@ -218,7 +275,7 @@ describe('NEXO Intel', () => {
     await user.click(screen.getByRole('button', { name: 'Ejecutar informe' }))
     expect(await screen.findByText(/Generando informe…/)).toBeInTheDocument()
     report.resolve(reply(201, wannacryReport))
-    expect(await screen.findByText('Informe #1', { exact: false })).toBeInTheDocument()
+    expect(await screen.findByText(/^Informe #1 ·/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Regenerar' }))
     expect(await screen.findByRole('heading', { name: 'Informe regenerado' })).toBeInTheDocument()
@@ -226,8 +283,7 @@ describe('NEXO Intel', () => {
     await user.selectOptions(version, '1')
     expect(screen.getByRole('cell', { name: 'T1486' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /Validación/ }))
-    expect(screen.getByText('Informe #1')).toBeInTheDocument()
+    expect(screen.getByText('Informe #1')).toBeInTheDocument() // panel de validación, misma pestaña
   })
 
   it('recupera el historial guardado y la respuesta cruda desde la caché del backend', async () => {
@@ -240,10 +296,10 @@ describe('NEXO Intel', () => {
 
     expect(list().getByText('Pendiente de validación')).toBeInTheDocument()
     await user.click(list().getByRole('link', { name: /wannacry/ }))
-    expect(await screen.findByRole('tab', { name: /Informe/, selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: /Resumen/, selected: true })).toBeInTheDocument()
     expect(screen.getByText('Entrada original')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /Enriquecimiento/ }))
+    await user.click(screen.getByRole('tab', { name: /Inteligencia/ }))
     await user.click(screen.getByText(/Respuesta cruda de OTX/))
     await user.click(screen.getByRole('button', { name: 'Recargar desde la caché del backend' }))
 
@@ -400,7 +456,8 @@ describe('NEXO Intel', () => {
     const { user } = renderApp({}, [investigation({ enrichment: wannacrySnapshot, reports: [wannacryReport] })], '#/investigaciones/1')
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
 
-    await user.click(await screen.findByRole('button', { name: 'Descargar .md' }))
+    await user.click(await screen.findByRole('tab', { name: /Informe y validación/ }))
+    await user.click(screen.getByRole('button', { name: 'Descargar .md' }))
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
     expect(click).toHaveBeenCalled()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:nexo')

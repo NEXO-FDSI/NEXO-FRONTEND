@@ -1,0 +1,103 @@
+.severity {
+  --tone: var(--sev-baja);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  color: var(--tone);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+.critica {
+  --tone: var(--sev-critica);
+}
+
+.alta {
+  --tone: var(--sev-alta);
+}
+
+.media {
+  --tone: var(--sev-media);
+}
+
+.baja {
+  --tone: var(--sev-baja);
+}
+
+.benigno {
+  --tone: var(--sev-benigno);
+}
+
+.indeterminada {
+  --tone: var(--sev-indeterminada);
+}
+
+.indeterminada .dot {
+  background: repeating-linear-gradient(45deg, var(--tone) 0 2px, transparent 2px 4px);
+  border: 1px solid var(--tone);
+}
+
+.sinEvaluar {
+  --tone: var(--color-text-subtle);
+  border-style: dashed;
+  background: transparent;
+  font-weight: 500;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  --tone: var(--color-text-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--tone);
+}
+
+.hit {
+  --tone: var(--color-danger);
+}
+
+.fallo {
+  --tone: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
+.name {
+  font-weight: 600;
+}
+
+.state {
+  color: var(--color-text-muted);
+}

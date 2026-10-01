@@ -1,0 +1,119 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel-sunken);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cardHeader h3 {
+  font-size: 0.95rem;
+}
+
+.detections p {
+  margin-bottom: 0.3rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.detections strong {
+  color: var(--color-text);
+  font-size: 1.05rem;
+}
+
+.bar {
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-raised);
+  overflow: hidden;
+}
+
+.malicious {
+  background: var(--color-danger);
+}
+
+.suspicious {
+  background: var(--color-warning);
+}
+
+.facts {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.facts dt {
+  color: var(--color-text-subtle);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-subtle);
+  font-size: 0.78rem;
+}
+
+.cardFooter a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

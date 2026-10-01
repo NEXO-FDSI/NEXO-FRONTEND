@@ -24,6 +24,7 @@
   color: var(--color-on-accent);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
   transition: background-color var(--ease);
 }
 
@@ -114,5 +115,17 @@
 
   .ia {
     display: none;
+  }
+}
+
+/* Muy angosto: el estado de la API queda como punto de color; el texto sigue para lectores. */
+@media (max-width: 480px) {
+  .pillText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

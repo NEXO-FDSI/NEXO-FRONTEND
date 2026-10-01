@@ -31,7 +31,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
       <div className={styles.tools}>
         <span className={`${styles.pill} ${styles[health]}`} role="status" title={API_URL}>
           <span className={styles.dot} aria-hidden="true" />
-          {HEALTH_LABEL[health]}
+          <span className={styles.pillText}>{HEALTH_LABEL[health]}</span>
         </span>
         {status && (
           <span
