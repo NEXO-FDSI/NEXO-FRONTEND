@@ -46,7 +46,7 @@ export interface StepDefinition {
 
 export const PIPELINE_STEPS: readonly StepDefinition[] = [
   { id: 'ingest', label: 'Ingesta', description: 'Normalización y validación', requires: null },
-  { id: 'enrich', label: 'Enriquecimiento', description: 'Reputación en AlienVault OTX', requires: 'ingest' },
+  { id: 'enrich', label: 'Enriquecimiento', description: 'Reputación en OTX, ThreatFox y VirusTotal', requires: 'ingest' },
   { id: 'correlate', label: 'Correlación', description: 'Entidad y técnicas MITRE ATT&CK', requires: 'enrich' },
   { id: 'report', label: 'Informe', description: 'Análisis grounded (LLM + RAG)', requires: 'enrich' },
   { id: 'validate', label: 'Validación', description: 'Decisión del analista', requires: 'report' },

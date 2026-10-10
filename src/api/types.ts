@@ -174,6 +174,19 @@ export interface RegistroIA {
   latencia_ms: number | null
   tokens: { prompt: number | null; respuesta: number | null } | null
   intentos_fallidos: { proveedor: string; modelo: string; error: string }[]
+  /**
+   * Cómo se eligieron las técnicas del contexto: por afinidad semántica (embeddings) con la
+   * evidencia o, si no hubo embedding, repartidas por táctica. Ausente en informes anteriores.
+   */
+  seleccion?: SeleccionTecnicas | null
+}
+
+export interface SeleccionTecnicas {
+  metodo: 'semantica' | 'por_tactica'
+  consulta: string
+  motivo: string | null
+  /** Similitud coseno (0-1) de cada técnica de la entidad con la consulta. */
+  puntajes: Record<string, number>
 }
 
 export interface ReportMetadatos {

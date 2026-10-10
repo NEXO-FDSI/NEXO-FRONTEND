@@ -160,6 +160,13 @@ export function AiAnalysisPanel({ report, ...props }: AiAnalysisPanelProps) {
         <section className={styles.context} aria-label="Contexto enviado al modelo">
           <h4 className={styles.heading}>Contexto enviado al modelo</h4>
           <p className={styles.hint}>Es todo lo que el modelo pudo leer. Elige una cita para ver de dónde sale.</p>
+          {ia.seleccion && (
+            <p className={styles.hint}>
+              {ia.seleccion.metodo === 'semantica'
+                ? 'Técnicas de la entidad ordenadas por afinidad semántica (embeddings) con la evidencia del indicador.'
+                : `Técnicas de la entidad repartidas por táctica: ${ia.seleccion.motivo ?? 'sin afinidad semántica'}.`}
+            </p>
+          )}
           <ol className={styles.blocks}>
             {ia.contexto.map((b) => (
               <li
@@ -169,6 +176,9 @@ export function AiAnalysisPanel({ report, ...props }: AiAnalysisPanelProps) {
               >
                 <span className={`${styles.blockId} mono`}>{b.id}</span>
                 <strong>{b.titulo}</strong>
+                {ia.seleccion?.puntajes[b.id] !== undefined && (
+                  <span className={`${styles.hint} mono`}>similitud {ia.seleccion.puntajes[b.id].toFixed(2)}</span>
+                )}
                 <p>{b.texto}</p>
               </li>
             ))}
