@@ -2,6 +2,7 @@ import { request } from './http'
 import type {
   BatchCreate,
   BatchCreated,
+  BatchDeleteResponse,
   BatchDetail,
   BatchReportRead,
   BatchSummary,
@@ -75,6 +76,9 @@ export const nexoApi = {
   /** Una versión nueva del informe conjunto: una sola llamada al LLM para todo el lote. */
   createBatchReport: (batchId: number) =>
     request<BatchReportRead>('POST', `/batches/${batchId}/report`, { timeoutMs: REPORT_TIMEOUT_MS }),
+
+  /** Irreversible: borra informes, validaciones y entradas del lote; sus indicadores no. */
+  deleteBatch: (batchId: number) => request<BatchDeleteResponse>('DELETE', `/batches/${batchId}`),
 
   validateBatchReport: (reportId: number, payload: ValidationRequest) =>
     request<BatchValidationRead>('POST', `/batch-reports/${reportId}/validate`, { body: payload }),

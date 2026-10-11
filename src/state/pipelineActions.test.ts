@@ -160,6 +160,17 @@ describe('lotes', () => {
     expect(paths()).toEqual(['POST /batches', 'GET /batches/99'])
   })
 
+  it('elimina un lote; si ya no estaba, el resultado es el mismo', async () => {
+    const eliminados = { batch_validation: 1, batch_reports: 2, batch_items: 3, batches: 1 }
+    const { actions, calls } = setup({ 'DELETE /batches/7': reply(200, { batch_id: 7, nombre: null, eliminados }) })
+    expect(await actions.deleteBatch(7)).toEqual({ ok: true, eliminados })
+    expect(calls).toEqual([{ method: 'DELETE', path: '/batches/7', body: undefined }])
+
+    expect(await setup().actions.deleteBatch(8)).toEqual({ ok: true, eliminados: {} }) // 404
+    const caido = setup({ 'DELETE /batches/9': new TypeError('Failed to fetch') })
+    expect((await caido.actions.deleteBatch(9)).ok).toBe(false)
+  })
+
   it('lista los lotes y reporta su fallo', async () => {
     expect(await setup({ 'GET /batches': reply(200, batchSummaries) }).actions.listBatches()).toEqual({ ok: true, batches: batchSummaries })
     const caido = setup({ 'GET /batches': new TypeError('Failed to fetch') })

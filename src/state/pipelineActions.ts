@@ -66,6 +66,8 @@ export interface PipelineActions {
   /** Genera una versión nueva del informe conjunto a partir de lo ya persistido. */
   createBatchReport(batchId: number): Promise<BatchReportResult>
   validateBatchReport(reportId: number, request: ValidationRequest): Promise<BatchValidateResult>
+  /** Elimina el lote del backend, en cascada. Sus indicadores siguen en Investigaciones. */
+  deleteBatch(batchId: number): Promise<DeleteResult>
 }
 
 /**
@@ -268,6 +270,16 @@ export function createPipelineActions(dispatch: (action: InvestigationsAction) =
         return { ok: true, report: await nexoApi.createBatchReport(batchId) }
       } catch (error) {
         return { ok: false, error: toErrorInfo(error) }
+      }
+    },
+
+    async deleteBatch(batchId) {
+      try {
+        return { ok: true, eliminados: (await nexoApi.deleteBatch(batchId)).eliminados }
+      } catch (error) {
+        const info = toErrorInfo(error)
+        // 404: ya no estaba en el backend (otra sesión lo borró); el resultado es el mismo.
+        return info.status === 404 ? { ok: true, eliminados: {} } : { ok: false, error: info }
       }
     },
 

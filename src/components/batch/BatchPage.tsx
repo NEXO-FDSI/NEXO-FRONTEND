@@ -1,4 +1,4 @@
-import { ChevronRight, FileText, Layers, Play, RefreshCw } from 'lucide-react'
+import { ChevronRight, FileText, Layers, Play, RefreshCw, Trash2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { BatchDetail, ValidationRequest } from '../../api/types'
 import type { ErrorInfo } from '../../api/http'
@@ -8,9 +8,10 @@ import { formatDateTime, truncateMiddle } from '../../domain/format'
 import type { Investigation } from '../../domain/investigation'
 import { ESTADO_FUENTE_LABEL, sourceName } from '../../domain/severity'
 import { useElapsedSeconds } from '../../hooks/useElapsedSeconds'
-import { rutas } from '../../hooks/useRoute'
+import { navigate, rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import app from '../../App.module.css'
+import detalleCaso from '../case/CaseDetail.module.css'
 import { SourceIcon } from '../case/Signals'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
 import { Alert } from '../ui/Alert'
@@ -31,8 +32,17 @@ const PASO: Record<EstadoPaso, { texto: string; tono: Tone; icono?: ReactNode }>
 }
 
 export function BatchPage({ id }: { id: number }) {
-  const { items, activityOf, loadBatch, analyzeBatch, completeSources, runAutomatic, createBatchReport, validateBatchReport } =
-    useInvestigations()
+  const {
+    items,
+    activityOf,
+    loadBatch,
+    analyzeBatch,
+    completeSources,
+    runAutomatic,
+    createBatchReport,
+    validateBatchReport,
+    deleteBatch,
+  } = useInvestigations()
   const [detalle, setDetalle] = useState<BatchDetail | null>(null)
   const [error, setError] = useState<ErrorInfo | null>(null)
   const [tab, setTab] = useState<BatchTab>('resumen')
@@ -41,6 +51,7 @@ export function BatchPage({ id }: { id: number }) {
   const [generando, setGenerando] = useState(false)
   const [validando, setValidando] = useState(false)
   const [fallo, setFallo] = useState<{ titulo: string; error: ErrorInfo } | null>(null)
+  const [eliminando, setEliminando] = useState<{ busy: boolean; error: string | null } | null>(null)
   const segundos = useElapsedSeconds(generando)
 
   const miembros = (detalle?.items ?? [])
@@ -111,6 +122,14 @@ export function BatchPage({ id }: { id: number }) {
     setTab('informe')
   }
 
+  async function eliminar() {
+    setEliminando({ busy: true, error: null })
+    const r = await deleteBatch(id)
+    if (r.ok) navigate(rutas.lotes)
+    // El diálogo sigue abierto con el error: se puede reintentar o cancelar.
+    else setEliminando({ busy: false, error: r.error.message })
+  }
+
   async function validar(reportId: number, request: ValidationRequest): Promise<boolean> {
     setValidando(true)
     setFallo(null)
@@ -153,6 +172,15 @@ export function BatchPage({ id }: { id: number }) {
               onClick={() => (pendientes.length > 0 ? setConfirmando(true) : void generar())}
             >
               Generar informe conjunto
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 size={14} aria-hidden="true" />}
+              disabled={corriendo || generando}
+              onClick={() => setEliminando({ busy: false, error: null })}
+            >
+              Eliminar
             </Button>
           </span>
         }
@@ -321,6 +349,37 @@ export function BatchPage({ id }: { id: number }) {
         validando={validando}
         onValidate={validar}
       />
+
+      <ConfirmDialog
+        open={eliminando !== null}
+        title="¿Eliminar este lote?"
+        confirmLabel="Eliminar definitivamente"
+        busy={eliminando?.busy}
+        onConfirm={() => void eliminar()}
+        onCancel={() => setEliminando(null)}
+      >
+        <p>
+          <span className={`${detalleCaso.dialogValue} mono`}>{batch.nombre || `Lote #${batch.id}`}</span> se
+          eliminará del backend junto con lo que le pertenece:
+        </p>
+        <ul className={detalleCaso.consequences}>
+          <li>{detalle.informes.length} versión(es) del informe conjunto, con su análisis de IA</li>
+          <li>
+            {detalle.validaciones.length} decisión(es) de analistas: <strong>se pierde ese historial de auditoría</strong>
+          </li>
+          <li>Las {detalle.items.length} entrada(s) que se pegaron, incluidas las descartadas</li>
+        </ul>
+        <p>
+          Los {miembros.length} indicador(es) <strong>no se eliminan</strong>: siguen en Investigaciones y en los otros
+          lotes donde estén.
+        </p>
+        <p className={detalleCaso.irreversible}>Esta acción no se puede deshacer.</p>
+        {eliminando?.error && (
+          <Alert tone="danger" title="No se pudo eliminar el lote">
+            {eliminando.error}
+          </Alert>
+        )}
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmando}

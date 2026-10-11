@@ -17,9 +17,9 @@ import styles from './Batch.module.css'
 
 // Escenarios oficiales de la propuesta (backend data/test_dataset/scenarios.json).
 const EXAMPLES: readonly { label: string; texto: string }[] = [
-  { label: 'Escenario 4 · SUNBURST', texto: '2c4a910a1299cdae2a4e55988a2f102e\nervsystem[.]com' },
+  { label: 'SUNBURST', texto: '2c4a910a1299cdae2a4e55988a2f102e\nervsystem[.]com' },
   {
-    label: 'Escenario 3 · tres amenazas',
+    label: 'tres amenazas',
     texto: 'googledrive[.]network\nedde2e639889353657078f66a3bd11b4ae54343a991e95a522a7d5c7f050eb15\n84.234.75.108',
   },
 ]
@@ -95,10 +95,6 @@ export function BatchForm() {
             aria-describedby={ids.hint}
             placeholder={'hxxp://evil[.]example/payload\n203.0.113.7\nd41d8cd98f00b204e9800998ecf8427e'}
           />
-          <p id={ids.hint} className={form.hint}>
-            IP, dominio, hash o URL, de tipos mezclados y también ofuscados (<code>hxxp</code>, <code>[.]</code>,{' '}
-            <code>[:]</code>, <code>[dot]</code>). Entre 2 y {MAX_INDICADORES_LOTE} líneas.
-          </p>
         </div>
 
         {lineas.length > 0 && (
@@ -158,11 +154,6 @@ export function BatchForm() {
             Para un solo indicador usa <a href={rutas.analizar}>Un indicador</a>.
           </Alert>
         )}
-
-        <p className={form.hint}>
-          Cada indicador se enriquece y se correlaciona por separado (3 a la vez). VirusTotal admite 4 consultas
-          por minuto: lo que no alcance a verificar queda pendiente y se puede completar después.
-        </p>
 
         <Button type="submit" variant="primary" loading={submitting} disabled={!puedeEnviar} icon={<Layers size={16} aria-hidden="true" />}>
           Crear lote y analizar

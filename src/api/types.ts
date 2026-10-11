@@ -418,3 +418,10 @@ export interface BatchDetail {
   informes: BatchReportRead[]
   validaciones: BatchValidationRead[]
 }
+
+/** DELETE /batches/{id}: filas borradas por tabla. Los indicadores del lote no se borran. */
+export interface BatchDeleteResponse {
+  batch_id: number
+  nombre: string | null
+  eliminados: Record<string, number>
+}

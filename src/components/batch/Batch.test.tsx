@@ -301,6 +301,44 @@ describe('Lotes', () => {
     expect(screen.queryByText(/Generando informe conjunto…/)).not.toBeInTheDocument()
   })
 
+  it('elimina el lote tras confirmar, sin borrar sus indicadores, y avisa si falla', async () => {
+    let intentos = 0
+    const { user, paths } = renderApp(
+      '#/lotes/7',
+      {
+        'GET /batches/7': reply(200, batchDetail({
+          informes: [loteReport],
+          validaciones: [{ id: 1, batch_report_id: 4, decision: 'aceptado', analista: null, timestamp: '2026-10-10T14:21:00Z' }],
+        })),
+        'DELETE /batches/7': () =>
+          ++intentos === 1
+            ? new TypeError('Failed to fetch')
+            : reply(200, { batch_id: 7, nombre: 'Triage de prueba', eliminados: { batches: 1 } }),
+        'GET /batches': reply(200, []),
+      },
+      PROCESADOS,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Eliminar' }))
+    const dialogo = within(screen.getByRole('alertdialog'))
+    expect(dialogo.getByText(/1 versión\(es\) del informe conjunto/)).toBeInTheDocument()
+    expect(dialogo.getByText(/1 decisión\(es\) de analistas/)).toHaveTextContent('se pierde ese historial de auditoría')
+    expect(dialogo.getByText(/Las 3 entrada\(s\) que se pegaron/)).toBeInTheDocument()
+    expect(dialogo.getByText(/Los 2 indicador\(es\)/)).toHaveTextContent('no se eliminan: siguen en Investigaciones')
+    await user.click(dialogo.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(paths()).not.toContain('DELETE /batches/7')
+
+    // Si el backend no responde, el diálogo sigue abierto con el error y se puede reintentar.
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar definitivamente' }))
+    expect(await screen.findByText('No se pudo eliminar el lote')).toBeInTheDocument()
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar definitivamente' }))
+    await vi.waitFor(() => expect(window.location.hash).toBe('#/lotes'))
+    expect(paths().filter((p) => p === 'DELETE /batches/7')).toHaveLength(2)
+    expect(paths().some((p) => p.startsWith('DELETE /indicators'))).toBe(false)
+  })
+
   it('pide entre 2 y 20 líneas y ofrece ejemplos de los escenarios oficiales', async () => {
     const { user } = renderApp('#/analizar/lote')
     const crear = screen.getByRole('button', { name: 'Crear lote y analizar' })
