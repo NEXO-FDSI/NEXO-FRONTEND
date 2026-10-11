@@ -1,6 +1,9 @@
 import { ChevronRight, FolderSearch } from 'lucide-react'
 import { useEffect, useState, type MouseEvent } from 'react'
 import type { ErrorInfo } from './api/http'
+import { BatchForm } from './components/batch/BatchForm'
+import { BatchList } from './components/batch/BatchList'
+import { BatchPage } from './components/batch/BatchPage'
 import { CaseDetail } from './components/case/CaseDetail'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -69,18 +72,34 @@ function InvestigationPage({ id }: { id: number }) {
   )
 }
 
+function AnalyzeView({ modo }: { modo: 'indicador' | 'lote' }) {
+  return (
+    <div className={modo === 'lote' ? styles.medium : styles.narrow}>
+      <nav aria-label="Modo de análisis" className={styles.modes}>
+        <a href={rutas.analizar} aria-current={modo === 'indicador' ? 'page' : undefined}>
+          Un indicador
+        </a>
+        <a href={rutas.analizarLote} aria-current={modo === 'lote' ? 'page' : undefined}>
+          Lote de indicadores
+        </a>
+      </nav>
+      {modo === 'lote' ? <BatchForm /> : <IndicatorForm />}
+    </div>
+  )
+}
+
 function View({ route }: { route: Route }) {
   switch (route.view) {
     case 'analizar':
-      return (
-        <div className={styles.narrow}>
-          <IndicatorForm />
-        </div>
-      )
+      return <AnalyzeView modo={route.modo} />
     case 'investigaciones':
       return <CaseList />
     case 'investigacion':
       return <InvestigationPage key={route.id} id={route.id} />
+    case 'lotes':
+      return <BatchList />
+    case 'lote':
+      return <BatchPage key={route.id} id={route.id} />
     case 'panel':
       return <Dashboard />
   }

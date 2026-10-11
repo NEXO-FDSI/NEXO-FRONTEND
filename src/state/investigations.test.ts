@@ -30,6 +30,17 @@ describe('investigationsReducer', () => {
     expect(state.activity[1]).toEqual(IDLE)
   })
 
+  it('al traer una investigación usa la entrada del lote si no la conocía, sin pisar la local', () => {
+    const snapshot = (indicator: typeof wannacryIndicator) => ({
+      indicator, enrichment: null, correlation: null, reports: [], validations: [],
+    })
+    const nueva = investigationsReducer(initialState([]), { type: 'loaded', snapshot: snapshot(benignIndicator), entrada: '8[.]8[.]8[.]8' })
+    expect(nueva.items[0].entrada).toBe('8[.]8[.]8[.]8')
+
+    const conocida = investigationsReducer(withTwo(), { type: 'loaded', snapshot: snapshot(benignIndicator), entrada: 'otra' })
+    expect(conocida.items.find((inv) => inv.indicator.id === 2)?.entrada).toBe('8.8.8.8')
+  })
+
   it('quita una investigación y su actividad', () => {
     const started = investigationsReducer(withTwo(), { type: 'stepStarted', indicatorId: 2, step: 'enrich' })
     const removed = investigationsReducer(started, { type: 'removed', indicatorId: 2 })

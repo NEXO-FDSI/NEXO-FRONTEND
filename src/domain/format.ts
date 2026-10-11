@@ -47,12 +47,17 @@ const IPV6 = /^[0-9a-f:]+$/i
 const HASH = /^([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})$/i
 const DOMAIN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*\.[a-z]{2,}$/i
 
+/** Deshace hxxp, [.], (.), [dot] y [:]. Solo para mostrar: la forma canónica la decide el backend. */
+export function refang(input: string): string {
+  return DEFANG.reduce((v, [pattern, replacement]) => v.replace(pattern, replacement), input.trim())
+}
+
 /**
  * Tipo probable de un IoC pegado por el analista, para preseleccionarlo en el formulario.
  * Es solo una ayuda: el backend normaliza y valida, y el analista puede cambiar el tipo.
  */
 export function detectType(input: string): IndicatorTipo | null {
-  const value = DEFANG.reduce((v, [pattern, replacement]) => v.replace(pattern, replacement), input.trim())
+  const value = refang(input)
   if (/^https?:\/\//i.test(value)) return 'url'
   if (IPV4.test(value) || (value.split(':').length > 2 && IPV6.test(value))) return 'ip'
   if (HASH.test(value)) return 'hash'

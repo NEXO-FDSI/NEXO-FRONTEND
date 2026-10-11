@@ -5,6 +5,10 @@
  * (backend docs/evolucion/fase-04-ia-estructurada.md).
  */
 import type {
+  BatchCreated,
+  BatchDetail,
+  BatchSummary,
+  CorrelacionLote,
   CorrelationResponse,
   EnrichmentResponse,
   FuenteEnriquecimiento,
@@ -322,3 +326,71 @@ export const statusResponse: StatusResponse = {
   ],
   ia: { proveedor: 'groq', modelo: 'qwen/qwen3.8-27b' },
 }
+
+// --- Lotes (Fase 7): forma de app/api/batches.py y app/correlation/lote.py ---
+
+export const loteRead = { id: 7, nombre: 'Triage de prueba', timestamp: '2026-10-10T14:02:11Z' }
+
+/** WannaCry ya registrado (reutilizado), 8.8.8.8 nuevo y una línea no reconocida. */
+export const batchCreated: BatchCreated = {
+  batch: loteRead,
+  items: [
+    { posicion: 1, entrada: WANNACRY_HASH.toUpperCase(), tipo: 'hash', ingesta: 'existente', indicator_id: 1, valor: WANNACRY_HASH, motivo: null },
+    { posicion: 2, entrada: '8[.]8[.]8[.]8', tipo: 'ip', ingesta: 'creado', indicator_id: 2, valor: '8.8.8.8', motivo: null },
+    { posicion: 3, entrada: 'no-es-un-ioc', tipo: null, ingesta: 'invalido', indicator_id: null, valor: null, motivo: 'tipo no reconocido' },
+  ],
+  resumen: { creados: 1, existentes: 1, duplicados: 0, invalidos: 1 },
+}
+
+const miembro = { contradicciones: [], cobertura: null, fuentes: [] }
+
+export const loteCorrelacion: CorrelacionLote = {
+  indicadores: [
+    {
+      ...miembro, ref: 'I1', indicator_id: 1, tipo: 'hash', valor: WANNACRY_HASH, ingesta: 'existente', estado: 'participa',
+      entidad: { id: 1, nombre: 'wannacry', tipo: 'malware' }, asociacion: 0.9,
+      severidad: { nivel: 'critica', motivos: [] }, confianza: { nivel: 'alta', motivos: [] },
+    },
+    {
+      ...miembro, ref: 'I2', indicator_id: 2, tipo: 'ip', valor: '8.8.8.8', ingesta: 'creado', estado: 'sin_entidad',
+      entidad: null, asociacion: null, severidad: { nivel: 'benigno', motivos: [] }, confianza: { nivel: 'sin_evidencia', motivos: [] },
+    },
+  ],
+  vinculos: [],
+  agrupaciones: [],
+  conclusion: {
+    nivel: 'sin_relacion_demostrable',
+    texto: 'Sin relación demostrable entre los indicadores. Menos de dos indicadores con entidad resuelta: no hay relaciones que evaluar.',
+    entidad_comun: [],
+    aislados: ['I1'],
+    no_participan: ['I2'],
+  },
+  cobertura: {
+    nivel: 'parcial', validos: 2, participan: 1, descartados: 1, sin_entidad: ['I2'], sin_correlacionar: [], sin_enriquecer: [],
+    fuentes: [],
+  },
+  cadena_ataque: [],
+}
+
+/** GET /batches/7 con los miembros recién registrados (sin enriquecer): la fusión es monotónica. */
+export function batchDetail(overrides: Partial<BatchDetail> = {}): BatchDetail {
+  return {
+    batch: loteRead,
+    items: batchCreated.items,
+    investigaciones: [wannacryIndicator, benignIndicator].map((indicator) => ({
+      indicator, enrichment: null, correlation: null, reports: [], validations: [],
+    })),
+    correlacion: loteCorrelacion,
+    informes: [],
+    validaciones: [],
+    ...overrides,
+  }
+}
+
+export const batchSummaries: BatchSummary[] = [
+  {
+    ...loteRead, indicadores: 2, descartados: 1,
+    ultimo_informe: { id: 4, conclusion: 'relacion_demostrable', timestamp: '2026-10-10T14:20:00Z' }, decision: 'aceptado',
+  },
+  { id: 6, nombre: null, timestamp: '2026-10-09T10:00:00Z', indicadores: 3, descartados: 0, ultimo_informe: null, decision: null },
+]

@@ -1,4 +1,4 @@
-import { FolderSearch, LayoutDashboard } from 'lucide-react'
+import { FolderSearch, Layers, LayoutDashboard } from 'lucide-react'
 import type { Route } from '../../hooks/useRoute'
 import { rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
@@ -15,6 +15,12 @@ export function SideNav({ route }: { route: Route }) {
       icon: <FolderSearch aria-hidden="true" />,
       activo: route.view === 'investigaciones' || route.view === 'investigacion',
       count: items.length,
+    },
+    {
+      href: rutas.lotes,
+      label: 'Lotes',
+      icon: <Layers aria-hidden="true" />,
+      activo: route.view === 'lotes' || route.view === 'lote',
     },
   ]
 

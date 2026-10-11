@@ -1,5 +1,9 @@
 import { request } from './http'
 import type {
+  BatchCreate,
+  BatchCreated,
+  BatchDetail,
+  BatchSummary,
   CorrelationResponse,
   DeleteResponse,
   EnrichmentResponse,
@@ -57,4 +61,12 @@ export const nexoApi = {
 
   validateReport: (reportId: number, payload: ValidationRequest) =>
     request<ValidationRead>('POST', `/reports/${reportId}/validate`, { body: payload }),
+
+  /** Registra o reutiliza cada indicador; un ítem inválido no aborta el lote. */
+  createBatch: (payload: BatchCreate) => request<BatchCreated>('POST', '/batches', { body: payload }),
+
+  listBatches: () => request<BatchSummary[]>('GET', '/batches'),
+
+  /** Ítems, investigación de cada miembro y correlación entre ellos (determinística). */
+  getBatch: (batchId: number) => request<BatchDetail>('GET', `/batches/${batchId}`),
 }
