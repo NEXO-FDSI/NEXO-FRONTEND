@@ -182,8 +182,9 @@ export interface RegistroIA {
 }
 
 export interface SeleccionTecnicas {
-  metodo: 'semantica' | 'por_tactica'
-  consulta: string
+  /** solapamiento_y_tactica: informe conjunto de un lote (primero las técnicas de varias entidades). */
+  metodo: 'semantica' | 'por_tactica' | 'solapamiento_y_tactica'
+  consulta: string | null
   motivo: string | null
   /** Similitud coseno (0-1) de cada técnica de la entidad con la consulta. */
   puntajes: Record<string, number>

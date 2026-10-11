@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../../App'
 import type { Investigation } from '../../domain/investigation'
-import { fail, mockBackend, reply, type Reply } from '../../test/fakeBackend'
+import { deferred, fail, mockBackend, reply, type Reply } from '../../test/fakeBackend'
 import {
   batchCreated,
   batchDetail,
@@ -12,11 +12,14 @@ import {
   benignIndicator,
   investigation,
   loteCorrelacion,
+  loteCorrelacionRelacion,
+  loteReport,
   statusResponse,
   unresolvedCorrelation,
   WANNACRY_HASH,
   wannacryCorrelation,
   wannacryEnrichment,
+  wannacrySnapshot,
 } from '../../test/fixtures'
 
 type Route = Reply | ((request: { body: unknown; query: URLSearchParams }) => Reply | Promise<Reply>)
@@ -40,6 +43,17 @@ function renderApp(hash: string, routes: Record<string, Route> = {}, history: In
   render(<App />)
   return { ...backend, user }
 }
+
+/** WannaCry y 8.8.8.8 ya enriquecidos y correlacionados: nada pendiente en el lote. */
+const PROCESADOS: Investigation[] = [
+  investigation({ enrichment: wannacrySnapshot, correlation: wannacryCorrelation }),
+  investigation({
+    indicator: benignIndicator,
+    entrada: '8.8.8.8',
+    enrichment: { ...wannacrySnapshot, tiene_evidencia: false, fuentes: benignEnrichment.fuentes },
+    correlation: unresolvedCorrelation,
+  }),
+]
 
 const fila = (ref: string) => screen.getByRole('cell', { name: ref }).closest('tr')!
 
@@ -115,6 +129,7 @@ describe('Lotes', () => {
       [investigation(), investigation({ indicator: benignIndicator, entrada: '8.8.8.8' })],
     )
 
+    expect(await screen.findByRole('button', { name: 'Generar informe conjunto' })).toBeDisabled()
     await user.click(await screen.findByRole('button', { name: 'Analizar pendientes (2)' }))
     expect(await within(fila('I1')).findByText('No se pudo verificar la reputación')).toBeInTheDocument()
     expect(within(fila('I1')).getByText('Falló')).toBeInTheDocument()
@@ -127,29 +142,163 @@ describe('Lotes', () => {
     expect(within(fila('I1')).queryByText('Falló')).not.toBeInTheDocument()
   })
 
-  it('muestra los vínculos que calculó el backend', async () => {
+  it('genera el informe conjunto, lo muestra por pestañas y registra decisiones con historial', async () => {
+    let validaciones = 0
+    const { user, calls } = renderApp(
+      '#/lotes/7',
+      {
+        'POST /batches/7/report': reply(201, loteReport),
+        'POST /batch-reports/4/validate': ({ body }) =>
+          reply(201, { id: ++validaciones, batch_report_id: 4, analista: null, timestamp: `2026-10-10T14:2${validaciones}:00Z`, ...(body as object) }),
+      },
+      PROCESADOS,
+    )
+    const resultados = () => within(screen.getByRole('region', { name: 'Resultados del lote' }))
+
+    // Sin informe: la correlación al vuelo, como vista previa. La abstención no es un error.
+    const conclusion = await screen.findByRole('region', { name: 'Conclusión del lote' })
+    expect(resultados().getByText('Vista previa')).toBeInTheDocument()
+    expect(conclusion).toHaveTextContent(loteCorrelacion.conclusion.texto)
+    expect(conclusion).toHaveTextContent('La ausencia de relación es un resultado válido')
+    expect(conclusion).not.toHaveClass('relacion')
+    await user.click(screen.getByRole('tab', { name: /Vínculos/ }))
+    expect(screen.getByText('Ningún par de indicadores comparte evidencia')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Cobertura ATT&CK/ }))
+    expect(screen.getByText('Sin técnicas que mostrar')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Análisis IA/ }))
+    expect(screen.getByText('Sin informe conjunto todavía')).toBeInTheDocument()
+
+    // Generar: una versión nueva que congela la correlación y abre el informe.
+    await user.click(screen.getByRole('button', { name: 'Generar informe conjunto' }))
+    expect(await screen.findByRole('tab', { name: /Informe y validación/, selected: true })).toBeInTheDocument()
+    expect(calls.at(-1)).toEqual({ method: 'POST', path: '/batches/7/report', body: undefined })
+    const informe = screen.getByRole('article')
+    expect(within(informe).getByRole('heading', { name: 'Informe conjunto — lote #7: Triage de prueba' })).toBeInTheDocument()
+    // Los valores van como código: nunca un enlace a infraestructura maliciosa.
+    expect(within(informe).getByText('http://evil.example/x').tagName).toBe('CODE')
+    expect(within(informe).queryByRole('link')).not.toBeInTheDocument()
+    expect(resultados().getByText(/^Informe conjunto #4 · /)).toBeInTheDocument()
+
+    // Resumen, vínculos y cobertura ahora son los de esa versión.
+    await user.click(screen.getByRole('tab', { name: /Resumen/ }))
+    expect(screen.getByRole('region', { name: 'Conclusión del lote' })).toHaveClass('relacion')
+    expect(within(screen.getByRole('region', { name: 'Agrupaciones' })).getByText('A1').closest('li')).toHaveTextContent(
+      'vínculos V1 · 2 técnica(s) común(es)',
+    )
+    await user.click(screen.getByRole('tab', { name: /Vínculos/ }))
+    const v1 = within(screen.getByRole('article', { name: 'Vínculo V1' }))
+    expect(v1.getByText('Pulse compartido').closest('li')).toHaveTextContent('Pulse compartidofuerteAlienVault OTX')
+    expect(v1.getByText('Misma entidad').closest('li')).toHaveTextContent('Misma entidadcontextualCorrelación de NEXO')
+    expect(v1.getByRole('link', { name: 'WannaCry IOCs' })).toHaveAttribute(
+      'href',
+      'https://otx.alienvault.com/pulse/5fd6df943558e0b56eaf3da8',
+    )
+    expect(v1.getByRole('link', { name: 'WannaCry IOCs' })).toHaveAttribute('rel', 'noopener noreferrer nofollow')
+    expect(screen.getByText(/No se consideran señal las técnicas o tácticas compartidas/)).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Cobertura ATT&CK/ }))
+    expect(screen.getByText('Técnicas documentadas, no comportamiento observado')).toBeInTheDocument()
+    const t1486 = screen.getByRole('link', { name: 'T1486' })
+    expect(t1486).toHaveAttribute('href', 'https://attack.mitre.org/techniques/T1486/')
+    expect(t1486.closest('li')).toHaveClass('varias')
+    expect(t1486.closest('li')).toHaveAttribute('title', 'Documentada para wannacry, emotet')
+    expect(screen.getByRole('link', { name: 'T1210' }).closest('li')).not.toHaveClass('varias')
+
+    // Análisis IA con citas a los bloques del lote.
+    await user.click(screen.getByRole('tab', { name: /Análisis IA/ }))
+    expect(screen.getByText(/Técnicas del lote: primero las documentadas para varias entidades/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Ver la fuente E-V1 en el contexto' }))
+    expect(screen.getByText('E-V1', { selector: 'span' }).closest('li')).toHaveAttribute('aria-current', 'true')
+
+    // Validación con historial: aceptar y luego rechazar deja dos filas.
+    await user.click(screen.getByRole('tab', { name: /Informe y validación/ }))
+    expect(screen.getByText(/Conclusión propuesta:/)).toHaveTextContent('Conclusión propuesta: Relación demostrable · A1: I1, I2')
+    await user.click(screen.getByRole('button', { name: 'Registrar decisión' }))
+    expect(screen.getByText('Elige si aceptas o rechazas el informe conjunto.')).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /Aceptar/ }))
+    await user.click(screen.getByRole('button', { name: 'Registrar decisión' }))
+    expect(await screen.findByText('Decisión registrada: aceptado.')).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /Rechazar/ }))
+    await user.click(screen.getByRole('button', { name: 'Registrar decisión' }))
+    expect(await screen.findByText('Estado: Rechazado')).toBeInTheDocument()
+    const historial = within(screen.getByRole('region', { name: 'Historial de decisiones' })).getAllByRole('listitem')
+    expect(historial.map((li) => li.firstChild?.textContent)).toEqual(['rechazado', 'aceptado'])
+    expect(calls.at(-1)).toEqual({ method: 'POST', path: '/batch-reports/4/validate', body: { decision: 'rechazado' } })
+  })
+
+  it('cada informe es una versión nueva y pendiente; la anterior conserva su decisión', async () => {
+    const { user } = renderApp(
+      '#/lotes/7',
+      {
+        'GET /batches/7': reply(200, batchDetail({
+          informes: [loteReport],
+          validaciones: [{ id: 1, batch_report_id: 4, decision: 'aceptado', analista: null, timestamp: '2026-10-10T14:21:00Z' }],
+        })),
+        'POST /batches/7/report': reply(201, {
+          ...loteReport, id: 5, conclusion: 'sin_relacion_demostrable', contenido: '# Informe conjunto v5',
+          metadatos: { ...loteReport.metadatos!, correlacion: loteCorrelacion },
+        }),
+        'POST /batch-reports/5/validate': fail(404, 'Informe del lote no encontrado'),
+      },
+      PROCESADOS,
+    )
+
+    await user.click(await screen.findByRole('tab', { name: /Informe y validación/ }))
+    expect(screen.getByText('Estado: Aceptado')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Generar informe conjunto' }))
+    expect(await screen.findByRole('heading', { name: 'Informe conjunto v5' })).toBeInTheDocument()
+    expect(screen.getByText('Estado: Pendiente de validación')).toBeInTheDocument()
+
+    // Un fallo al validar se avisa y no entra al historial.
+    await user.click(screen.getByRole('radio', { name: /Rechazar/ }))
+    await user.click(screen.getByRole('button', { name: 'Registrar decisión' }))
+    expect(await screen.findByText('No se pudo registrar la decisión')).toBeInTheDocument()
+    expect(screen.getByText('Sin decisiones registradas para este informe.')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Versión'), '4')
+    expect(screen.getByRole('heading', { name: 'Informe conjunto — lote #7: Triage de prueba' })).toBeInTheDocument()
+    expect(screen.getByText('Estado: Aceptado')).toBeInTheDocument()
+  })
+
+  it('en una relación demostrable lista también a los que no se relacionan con el resto', async () => {
+    const i3 = { ...loteCorrelacionRelacion.indicadores[0], ref: 'I3', indicator_id: 3, valor: 'googledrive.network',
+      entidad: { id: 2, nombre: 'lazarus group', tipo: 'grupo' } }
     renderApp('#/lotes/7', {
       'GET /batches/7': reply(200, batchDetail({
         correlacion: {
-          ...loteCorrelacion,
-          vinculos: [{
-            id: 'V1', a: 'I1', b: 'I2', confianza: 'media',
-            senales: [
-              { tipo: 'pulse_compartido', fuerza: 'fuerte', origen: 'alienvault_otx', detalle: '4 pulse(s)…', pulses: [] },
-              { tipo: 'misma_entidad', fuerza: 'contextual', origen: 'correlacion_nexo', detalle: 'ambos…', entity_id: 1 },
-            ],
-          }],
-          conclusion: { ...loteCorrelacion.conclusion, nivel: 'relacion_demostrable', texto: 'Relación demostrable entre I1 y I2 (A1, confianza media).' },
+          ...loteCorrelacionRelacion,
+          indicadores: [...loteCorrelacionRelacion.indicadores, i3],
+          conclusion: { ...loteCorrelacionRelacion.conclusion, aislados: ['I3'] },
         },
       })),
-    })
+    }, PROCESADOS)
 
-    const vinculos = within(await screen.findByRole('region', { name: 'Vínculos entre indicadores' }))
-    expect(vinculos.getByText('Relación demostrable')).toBeInTheDocument()
-    const v1 = vinculos.getByText('V1').closest('li')!
-    expect(v1).toHaveTextContent('I1 – I2')
-    expect(v1).toHaveTextContent('Pulse compartido + Misma entidad')
-    expect(v1).toHaveTextContent('Confianza media')
+    const aislados = within(await screen.findByRole('region', { name: 'Sin relación demostrable con el resto' }))
+    expect(aislados.getByText('I3').closest('li')).toHaveTextContent('I3googledrive.networklazarus group')
+  })
+
+  it('pide confirmar si quedan indicadores pendientes, muestra la espera y avisa si falla', async () => {
+    const gate = deferred<Reply>()
+    const { user, paths } = renderApp(
+      '#/lotes/7',
+      { 'POST /batches/7/report': () => gate.promise },
+      [investigation({ enrichment: wannacrySnapshot }), PROCESADOS[1]],
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Generar informe conjunto' }))
+    const dialogo = within(screen.getByRole('alertdialog'))
+    expect(dialogo.getByText(/1 indicador\(es\) sin procesar/)).toBeInTheDocument()
+    await user.click(dialogo.getByRole('button', { name: 'Cancelar' }))
+    expect(paths()).not.toContain('POST /batches/7/report')
+
+    await user.click(screen.getByRole('button', { name: 'Generar informe conjunto' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Generar igual' }))
+    expect(await screen.findByText(/Generando informe conjunto…/)).toBeInTheDocument()
+
+    gate.resolve(fail(400, 'Ejecuta /enrich en al menos un indicador del lote antes de generar el informe conjunto'))
+    const alerta = await screen.findByText('No se pudo generar el informe conjunto')
+    expect(alerta.closest('[role="alert"]')).toHaveTextContent('Ejecuta /enrich en al menos un indicador')
+    expect(screen.queryByText(/Generando informe conjunto…/)).not.toBeInTheDocument()
   })
 
   it('pide entre 2 y 20 líneas y ofrece ejemplos de los escenarios oficiales', async () => {

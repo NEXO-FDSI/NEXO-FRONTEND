@@ -1,4 +1,4 @@
-import type { ConclusionLote, FuenteEnriquecimiento, IndicatorTipo, Ingesta, SenalLote } from '../api/types'
+import type { ConclusionLote, EstadoMiembro, FuenteEnriquecimiento, IndicatorTipo, Ingesta, SenalLote } from '../api/types'
 import { detectType, refang } from './format'
 import { isStepDone, type AutomaticStep, type Investigation, type StepId } from './investigation'
 import { isFailedSource } from './severity'
@@ -86,4 +86,17 @@ export const SENAL_LABEL: Record<SenalLote['tipo'], string> = {
   pulse_compartido: 'Pulse compartido',
   infraestructura: 'Infraestructura',
   misma_entidad: 'Misma entidad',
+}
+
+export const ORIGEN_LABEL: Record<SenalLote['origen'], string> = {
+  alienvault_otx: 'AlienVault OTX',
+  estructura: 'Estructura de los valores',
+  correlacion_nexo: 'Correlación de NEXO',
+}
+
+export const ESTADO_MIEMBRO_LABEL: Record<EstadoMiembro, string> = {
+  participa: 'Participa',
+  sin_entidad: 'Sin entidad atribuible',
+  sin_correlacionar: 'Falta correlacionar',
+  sin_enriquecer: 'Sin enriquecer',
 }

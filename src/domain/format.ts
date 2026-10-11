@@ -33,6 +33,11 @@ export const INDICATOR_TYPES: readonly IndicatorTypeInfo[] = [
   { tipo: 'url', label: 'URL', placeholder: 'hxxp://evil[.]example.com/payload' },
 ]
 
+/** `entities.tipo` para mostrar: "campaña" es el objeto Campaign de ATT&CK, no un lote de NEXO. */
+export function entityTypeLabel(tipo: string): string {
+  return tipo === 'campaña' ? 'Campaña ATT&CK' : tipo
+}
+
 export function indicatorTypeLabel(tipo: string): string {
   return INDICATOR_TYPES.find((t) => t.tipo === tipo)?.label ?? tipo
 }

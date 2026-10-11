@@ -181,6 +181,8 @@
 
 .badges {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.3rem;
 }
 
@@ -190,4 +192,152 @@
   gap: 0.3rem;
   font-size: 0.85rem;
   font-weight: 500;
+}
+
+/* --- Resultados del lote (7e) --- */
+
+.previa {
+  margin-bottom: 0.75rem;
+}
+
+.miembro {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+/* La abstención no es un error: neutral. Una relación demostrable: info, nunca éxito ni peligro. */
+.conclusion {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-text-subtle);
+  border-radius: var(--radius);
+  background: var(--color-panel-sunken);
+}
+
+.relacion {
+  border-left-color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 7%, var(--color-panel));
+}
+
+.conclusionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.card {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-panel-sunken);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.senales {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.88rem;
+}
+
+.senales > li {
+  display: grid;
+  gap: 0.25rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.senal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pulses {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.84rem;
+}
+
+.tecnicas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tecnicas li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+  font-size: 0.82rem;
+}
+
+.tecnicas .varias {
+  border: 1px dashed var(--color-entity);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.badgesWrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.version {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.version select {
+  min-height: 30px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+}
+
+.generando {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-panel-sunken);
 }

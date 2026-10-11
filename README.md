@@ -25,6 +25,8 @@ Proyecto del curso **Seminario de Seguridad de la Información 2026-2**, Escuela
 | 4. Informe | `POST /indicators/{id}/report` | Informe Markdown renderizado de forma segura, con versiones (cada regeneración es una fila nueva), copia y descarga `.md`. Contador de espera para el LLM (hasta ~60 s) |
 | 5. Validación | `POST /reports/{id}/validate` | Decisión aceptar/rechazar con analista opcional e historial auditable por informe |
 | Estado | `GET /health` | Indicador "API en línea" en la barra superior, consultado cada 30 s |
+| Lotes | `POST /batches`, `GET /batches`, `GET /batches/{id}` | **Analizar → Lote de indicadores**: bloque pegado (uno por línea, tipos mezclados y ofuscados) con vista previa; cada miembro se enriquece y correlaciona, 3 a la vez, con su progreso, sus fuentes sin verificar y **Completar fuentes** |
+| Informe conjunto | `POST /batches/{id}/report`, `POST /batch-reports/{id}/validate` | Pestañas **Resumen** (relación demostrable o "Sin relación demostrable entre los indicadores"), **Vínculos** (señales con su fuente), **Cobertura ATT&CK** (técnicas por táctica; compartirlas no prueba relación), **Análisis IA** e **Informe y validación**, con versiones e historial |
 
 Cada paso se puede ejecutar a mano (como lo diseñó el backend, un endpoint por paso) o con **Análisis completo**, que encadena enriquecimiento, correlación e informe y se detiene en el primer fallo.
 
@@ -146,6 +148,9 @@ Debajo del formulario hay botones de ejemplo con los indicadores de los escenari
 | Error interno (500) | `docker stop nexo-pg`, registra una IP nueva y luego `docker start nexo-pg` | "Backend inaccesible", con la explicación del 500 sin cabeceras CORS |
 | Paso a paso | Desmarca *Analizar automáticamente* antes de registrar | Cada paso se ejecuta desde el stepper o desde su pestaña |
 | Persistencia | Recarga la página | El historial se conserva |
+| Misma campaña (lote) | **Analizar → Lote de indicadores** → ejemplo **Escenario 4** → *Crear lote y analizar* → *Generar informe conjunto* | "Relación demostrable" `A1`: pulses de OTX compartidos y misma entidad (`sunburst`), confianza media. Si OTX no responde para un miembro, el lote se abstiene y lo declara; *Completar fuentes* y un informe nuevo lo resuelven |
+| Múltiples técnicas (lote) | Ejemplo **Escenario 3** | "Sin relación demostrable entre los indicadores"; en *Cobertura ATT&CK*, las técnicas de varias entidades con borde punteado |
+| Validación del informe conjunto | Pestaña *Informe y validación* → *Aceptar* o *Rechazar* | La decisión entra al historial de esa versión; un informe nuevo vuelve a quedar pendiente |
 | Responsive | DevTools (F12) → vista de dispositivo móvil | Una sola columna y sin scroll horizontal |
 
 El apartado *Análisis* del informe dice "no disponible" si Ollama no está corriendo: es el comportamiento esperado del backend, que genera el resto del informe igual. Para obtener la narrativa del LLM, sigan la sección de Ollama del README del backend.

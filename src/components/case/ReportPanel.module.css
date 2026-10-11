@@ -135,4 +135,6 @@
 .markdown th {
   background: var(--color-panel-raised);
   color: var(--color-text-muted);
+  /* Una celda larga (las señales de un vínculo) no debe partir el encabezado en sílabas. */
+  white-space: nowrap;
 }

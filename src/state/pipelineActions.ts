@@ -4,7 +4,9 @@ import type {
   BatchCreate,
   BatchCreated,
   BatchDetail,
+  BatchReportRead,
   BatchSummary,
+  BatchValidationRead,
   IndicatorCreate,
   IndicatorRead,
   IndicatorTipo,
@@ -32,6 +34,8 @@ export type DeleteResult = { ok: true; eliminados: Record<string, number> } | { 
 export type BatchCreateResult = { ok: true; created: BatchCreated } | { ok: false; error: ErrorInfo }
 export type BatchLoadResult = { ok: true; detail: BatchDetail } | { ok: false; error: ErrorInfo }
 export type BatchListResult = { ok: true; batches: BatchSummary[] } | { ok: false; error: ErrorInfo }
+export type BatchReportResult = { ok: true; report: BatchReportRead } | { ok: false; error: ErrorInfo }
+export type BatchValidateResult = { ok: true; validation: BatchValidationRead } | { ok: false; error: ErrorInfo }
 
 export interface PipelineActions {
   register(payload: IndicatorCreate, options: { autoRun: boolean }): Promise<RegisterResult>
@@ -59,6 +63,9 @@ export interface PipelineActions {
   analyzeBatch(miembros: readonly Investigation[]): Promise<void>
   /** Repite enrich → correlate en los miembros con fuentes sin verificar (p. ej. cupo de VirusTotal). */
   completeSources(miembros: readonly Investigation[]): Promise<void>
+  /** Genera una versión nueva del informe conjunto a partir de lo ya persistido. */
+  createBatchReport(batchId: number): Promise<BatchReportResult>
+  validateBatchReport(reportId: number, request: ValidationRequest): Promise<BatchValidateResult>
 }
 
 /**
@@ -255,6 +262,22 @@ export function createPipelineActions(dispatch: (action: InvestigationsAction) =
         // fuentes sin caché, y la correlación debe recalcularse con la evidencia nueva.
         (inv) => runAutomatic(inv, PASOS_LOTE, true),
       ),
+
+    async createBatchReport(batchId) {
+      try {
+        return { ok: true, report: await nexoApi.createBatchReport(batchId) }
+      } catch (error) {
+        return { ok: false, error: toErrorInfo(error) }
+      }
+    },
+
+    async validateBatchReport(reportId, request) {
+      try {
+        return { ok: true, validation: await nexoApi.validateBatchReport(reportId, request) }
+      } catch (error) {
+        return { ok: false, error: toErrorInfo(error) }
+      }
+    },
 
     validate: (indicatorId, reportId, request) =>
       withLock(indicatorId, () =>

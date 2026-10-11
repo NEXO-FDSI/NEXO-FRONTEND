@@ -3,7 +3,9 @@ import type {
   BatchCreate,
   BatchCreated,
   BatchDetail,
+  BatchReportRead,
   BatchSummary,
+  BatchValidationRead,
   CorrelationResponse,
   DeleteResponse,
   EnrichmentResponse,
@@ -69,4 +71,11 @@ export const nexoApi = {
 
   /** Ítems, investigación de cada miembro y correlación entre ellos (determinística). */
   getBatch: (batchId: number) => request<BatchDetail>('GET', `/batches/${batchId}`),
+
+  /** Una versión nueva del informe conjunto: una sola llamada al LLM para todo el lote. */
+  createBatchReport: (batchId: number) =>
+    request<BatchReportRead>('POST', `/batches/${batchId}/report`, { timeoutMs: REPORT_TIMEOUT_MS }),
+
+  validateBatchReport: (reportId: number, payload: ValidationRequest) =>
+    request<BatchValidationRead>('POST', `/batch-reports/${reportId}/validate`, { body: payload }),
 }

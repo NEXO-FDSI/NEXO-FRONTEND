@@ -1,33 +1,26 @@
-import { ChevronRight, Layers, Link2, Play, RefreshCw } from 'lucide-react'
+import { ChevronRight, FileText, Layers, Play, RefreshCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import type { BatchDetail, ConfianzaVinculo } from '../../api/types'
+import type { BatchDetail, ValidationRequest } from '../../api/types'
 import type { ErrorInfo } from '../../api/http'
-import {
-  CONCLUSION_LABEL,
-  estadoPaso,
-  fuentesFallidas,
-  INGESTA_LABEL,
-  miembroListo,
-  PASOS_LOTE,
-  SENAL_LABEL,
-  type EstadoPaso,
-} from '../../domain/batch'
+import { estadoPaso, fuentesFallidas, INGESTA_LABEL, miembroListo, PASOS_LOTE, type EstadoPaso } from '../../domain/batch'
 import { describeFailure } from '../../domain/failures'
 import { formatDateTime, truncateMiddle } from '../../domain/format'
 import type { Investigation } from '../../domain/investigation'
 import { ESTADO_FUENTE_LABEL, sourceName } from '../../domain/severity'
+import { useElapsedSeconds } from '../../hooks/useElapsedSeconds'
 import { rutas } from '../../hooks/useRoute'
 import { useInvestigations } from '../../state/InvestigationsContext'
 import app from '../../App.module.css'
 import { SourceIcon } from '../case/Signals'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
-import { NIVEL_CONFIANZA_TONE } from '../tones'
 import { Alert } from '../ui/Alert'
 import { Badge, type Tone } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EmptyState } from '../ui/EmptyState'
 import { Panel } from '../ui/Panel'
 import { Spinner } from '../ui/Spinner'
+import { BatchResults, type BatchTab } from './BatchResults'
 import styles from './Batch.module.css'
 
 const PASO: Record<EstadoPaso, { texto: string; tono: Tone; icono?: ReactNode }> = {
@@ -37,12 +30,18 @@ const PASO: Record<EstadoPaso, { texto: string; tono: Tone; icono?: ReactNode }>
   fallido: { texto: 'Falló', tono: 'danger' },
 }
 
-const CONFIANZA_VINCULO_TONE: Record<ConfianzaVinculo, Tone> = NIVEL_CONFIANZA_TONE
-
 export function BatchPage({ id }: { id: number }) {
-  const { items, activityOf, loadBatch, analyzeBatch, completeSources, runAutomatic } = useInvestigations()
+  const { items, activityOf, loadBatch, analyzeBatch, completeSources, runAutomatic, createBatchReport, validateBatchReport } =
+    useInvestigations()
   const [detalle, setDetalle] = useState<BatchDetail | null>(null)
   const [error, setError] = useState<ErrorInfo | null>(null)
+  const [tab, setTab] = useState<BatchTab>('resumen')
+  const [informeId, setInformeId] = useState<number | null>(null)
+  const [confirmando, setConfirmando] = useState(false)
+  const [generando, setGenerando] = useState(false)
+  const [validando, setValidando] = useState(false)
+  const [fallo, setFallo] = useState<{ titulo: string; error: ErrorInfo } | null>(null)
+  const segundos = useElapsedSeconds(generando)
 
   const miembros = (detalle?.items ?? [])
     .map((item) => items.find((inv) => inv.indicator.id === item.indicator_id))
@@ -84,6 +83,7 @@ export function BatchPage({ id }: { id: number }) {
   }
 
   const { batch, correlacion } = detalle
+  const informe = detalle.informes.find((r) => r.id === informeId) ?? detalle.informes.at(-1) ?? null
   const ref = new Map(correlacion.indicadores.map((m) => [m.indicator_id, m.ref]))
   const pendientes = miembros.filter((inv) => !miembroListo(inv))
   const conFallas = miembros.filter((inv) => fuentesFallidas(inv).length > 0)
@@ -94,6 +94,31 @@ export function BatchPage({ id }: { id: number }) {
     for (const f of fuentesFallidas(inv)) {
       sinVerificar.set(f.etiqueta, [...(sinVerificar.get(f.etiqueta) ?? []), ref.get(inv.indicator.id) ?? `#${inv.indicator.id}`])
     }
+  }
+
+  async function generar() {
+    setConfirmando(false)
+    setGenerando(true)
+    setFallo(null)
+    const r = await createBatchReport(id)
+    setGenerando(false)
+    if (!r.ok) {
+      setFallo({ titulo: 'No se pudo generar el informe conjunto', error: r.error })
+      return
+    }
+    setDetalle((d) => d && { ...d, informes: [...d.informes, r.report] })
+    setInformeId(r.report.id)
+    setTab('informe')
+  }
+
+  async function validar(reportId: number, request: ValidationRequest): Promise<boolean> {
+    setValidando(true)
+    setFallo(null)
+    const r = await validateBatchReport(reportId, request)
+    setValidando(false)
+    if (r.ok) setDetalle((d) => d && { ...d, validaciones: [...d.validaciones, r.validation] })
+    else setFallo({ titulo: 'No se pudo registrar la decisión', error: r.error })
+    return r.ok
   }
 
   return (
@@ -108,16 +133,28 @@ export function BatchPage({ id }: { id: number }) {
         title={batch.nombre || `Lote #${batch.id}`}
         icon={<Layers aria-hidden="true" />}
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Play size={14} aria-hidden="true" />}
-            loading={corriendo}
-            disabled={pendientes.length === 0}
-            onClick={() => void analyzeBatch(pendientes)}
-          >
-            {corriendo ? 'Analizando…' : `Analizar pendientes (${pendientes.length})`}
-          </Button>
+          <span className={styles.badges}>
+            <Button
+              size="sm"
+              icon={<Play size={14} aria-hidden="true" />}
+              loading={corriendo}
+              disabled={pendientes.length === 0 || generando}
+              onClick={() => void analyzeBatch(pendientes)}
+            >
+              {corriendo ? 'Analizando…' : `Analizar pendientes (${pendientes.length})`}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<FileText size={14} aria-hidden="true" />}
+              loading={generando}
+              // El backend responde 400 si ningún miembro está enriquecido.
+              disabled={corriendo || miembros.every((inv) => inv.enrichment === null)}
+              onClick={() => (pendientes.length > 0 ? setConfirmando(true) : void generar())}
+            >
+              Generar informe conjunto
+            </Button>
+          </span>
         }
       >
         <div className={styles.stack}>
@@ -138,6 +175,25 @@ export function BatchPage({ id }: { id: number }) {
           {error && (
             <Alert tone="warning" title="No se pudo actualizar el lote">
               {error.message}
+            </Alert>
+          )}
+
+          {generando && (
+            <div className={styles.generando} role="status">
+              <Spinner size={18} />
+              <div>
+                <p className={styles.subtitle}>Generando informe conjunto… {segundos} s</p>
+                <p className={styles.muted}>
+                  Una sola llamada al modelo para todo el lote: con Groq tarda unos segundos; con el modelo local de
+                  respaldo, hasta un minuto. Si ningún modelo responde, el informe se genera igual sin ese apartado.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {fallo && (
+            <Alert tone="danger" title={fallo.titulo} onDismiss={() => setFallo(null)}>
+              {describeFailure('report', fallo.error).hint ?? fallo.error.message}
             </Alert>
           )}
 
@@ -256,34 +312,29 @@ export function BatchPage({ id }: { id: number }) {
         </div>
       </Panel>
 
-      <Panel title="Vínculos entre indicadores" icon={<Link2 aria-hidden="true" />} actions={<Badge>{correlacion.vinculos.length}</Badge>}>
-        <div className={styles.stack}>
-          <p>
-            <Badge tone={correlacion.conclusion.nivel === 'relacion_demostrable' ? 'info' : 'neutral'}>
-              {CONCLUSION_LABEL[correlacion.conclusion.nivel]}
-            </Badge>{' '}
-            {correlacion.conclusion.texto}
-          </p>
-          {correlacion.vinculos.length > 0 && (
-            <ul className={styles.vinculos}>
-              {correlacion.vinculos.map((v) => (
-                <li key={v.id}>
-                  <span className={styles.ref}>{v.id}</span>
-                  <span>
-                    {v.a} – {v.b}
-                  </span>
-                  <span className={styles.muted}>{v.senales.map((s) => SENAL_LABEL[s.tipo]).join(' + ')}</span>
-                  <Badge tone={CONFIANZA_VINCULO_TONE[v.confianza]}>Confianza {v.confianza}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className={styles.muted}>
-            Calculados por NEXO con reglas fijas a partir de lo ya persistido; se actualizan al terminar el análisis.
-            Compartir técnicas o tácticas no cuenta como vínculo.
-          </p>
-        </div>
-      </Panel>
+      <BatchResults
+        detalle={detalle}
+        informe={informe}
+        tab={tab}
+        onTab={setTab}
+        onSelectInforme={setInformeId}
+        validando={validando}
+        onValidate={validar}
+      />
+
+      <ConfirmDialog
+        open={confirmando}
+        tone="neutral"
+        title="¿Generar el informe con indicadores pendientes?"
+        confirmLabel="Generar igual"
+        onConfirm={() => void generar()}
+        onCancel={() => setConfirmando(false)}
+      >
+        <p>
+          {pendientes.length} indicador(es) sin procesar. El informe los declarará como cobertura parcial; puedes
+          analizarlos y generar otra versión después.
+        </p>
+      </ConfirmDialog>
     </>
   )
 }
