@@ -61,14 +61,19 @@ describe('parseRoute', () => {
   it.each([
     ['', { view: 'panel' }],
     ['#/', { view: 'panel' }],
-    ['#/analizar', { view: 'analizar' }],
+    ['#/analizar', { view: 'analizar', modo: 'indicador' }],
+    ['#/analizar/lote', { view: 'analizar', modo: 'lote' }],
     ['#/investigaciones', { view: 'investigaciones' }],
     ['#/investigaciones/', { view: 'investigaciones' }],
     ['#/investigaciones/42', { view: 'investigacion', id: 42 }],
+    ['#/lotes', { view: 'lotes' }],
+    ['#/lotes/7', { view: 'lote', id: 7 }],
     // Lo desconocido cae al panel en vez de romper la vista.
     ['#/investigaciones/abc', { view: 'panel' }],
     ['#/investigaciones/42/extra', { view: 'panel' }],
     ['#/analizar/1', { view: 'panel' }],
+    ['#/lotes/abc', { view: 'panel' }],
+    ['#/lotes/7/extra', { view: 'panel' }],
     ['#/otra', { view: 'panel' }],
   ])('%s', (hash, route) => {
     expect(parseRoute(hash)).toEqual(route)

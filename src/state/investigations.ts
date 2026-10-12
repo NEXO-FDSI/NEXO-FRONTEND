@@ -24,7 +24,8 @@ export interface InvestigationsState {
 
 export type InvestigationsAction =
   | { type: 'registered'; indicator: IndicatorRead; entrada: string }
-  | { type: 'loaded'; snapshot: InvestigationSnapshot }
+  /** `entrada`: lo que escribió el analista, si se conoce (p. ej. el ítem de un lote). */
+  | { type: 'loaded'; snapshot: InvestigationSnapshot; entrada?: string }
   | { type: 'synced'; ids: number[] }
   | { type: 'removed'; indicatorId: number }
   | { type: 'stepStarted'; indicatorId: number; step: StepId }
@@ -145,8 +146,8 @@ export function investigationsReducer(
     case 'loaded': {
       const id = action.snapshot.indicator.id
       const local = state.items.find((inv) => inv.indicator.id === id)
-      // La entrada original del analista solo la conoce el navegador que la registró.
-      const remoto = fromSnapshot(action.snapshot, local?.entrada)
+      // La entrada original del analista solo la conoce el navegador que la registró (o el lote).
+      const remoto = fromSnapshot(action.snapshot, local?.entrada ?? action.entrada)
       return {
         ...state,
         items: local

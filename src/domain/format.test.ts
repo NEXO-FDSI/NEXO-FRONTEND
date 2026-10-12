@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { confidenceLevel } from './confidence'
-import { detectType, formatDateTime, formatPercent, indicatorTypeLabel, truncateMiddle } from './format'
+import { detectType, entityTypeLabel, formatDateTime, formatPercent, indicatorTypeLabel, truncateMiddle } from './format'
 
 describe('formatos', () => {
   it('formatea fechas ISO y conserva valores ilegibles', () => {
@@ -56,5 +56,12 @@ describe('detectType', () => {
 
   it.each(['', 'no-es-ip', '999.1.1.1', 'abc123', '-malo.com', 'dominio'])('%s no se reconoce', (value) => {
     expect(detectType(value)).toBeNull()
+  })
+})
+
+describe('entityTypeLabel', () => {
+  it('distingue la campaña de ATT&CK de un lote de NEXO', () => {
+    expect(entityTypeLabel('campaña')).toBe('Campaña ATT&CK')
+    expect(entityTypeLabel('malware')).toBe('malware')
   })
 })

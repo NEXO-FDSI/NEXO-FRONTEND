@@ -1,7 +1,7 @@
 import { ChevronRight, Crosshair, Layers, Waypoints } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { groupByTactic } from '../../domain/attck'
-import { indicatorTypeLabel, truncateMiddle } from '../../domain/format'
+import { entityTypeLabel, indicatorTypeLabel, truncateMiddle } from '../../domain/format'
 import type { Investigation } from '../../domain/investigation'
 import { IndicatorTypeIcon } from '../IndicatorTypeIcon'
 import { ConfidenceMeter } from '../ui/ConfidenceMeter'
@@ -56,7 +56,7 @@ export function EvidenceChain({ inv }: { inv: Investigation }) {
           caption="Entidad · etapa (a)"
           icon={<Crosshair size={14} aria-hidden="true" />}
           state={!correlation ? 'pending' : entity ? 'active' : 'empty'}
-          detail={entity?.tipo}
+          detail={entity ? entityTypeLabel(entity.tipo) : undefined}
         >
           {!correlation ? 'Pendiente de correlación' : entity ? entity.nombre : 'Sin asociación'}
         </ChainNode>

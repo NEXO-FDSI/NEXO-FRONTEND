@@ -182,8 +182,9 @@ export interface RegistroIA {
 }
 
 export interface SeleccionTecnicas {
-  metodo: 'semantica' | 'por_tactica'
-  consulta: string
+  /** solapamiento_y_tactica: informe conjunto de un lote (primero las técnicas de varias entidades). */
+  metodo: 'semantica' | 'por_tactica' | 'solapamiento_y_tactica'
+  consulta: string | null
   motivo: string | null
   /** Similitud coseno (0-1) de cada técnica de la entidad con la consulta. */
   puntajes: Record<string, number>
@@ -260,4 +261,167 @@ export interface StatusResponse {
   fuentes: { fuente: string; etiqueta: string; configurada: boolean }[]
   /** Proveedor activo. El respaldo opera en el backend pero no se expone. */
   ia: { proveedor: string; modelo: string }
+}
+
+// --- Lotes (Fase 7): app/schemas/batch.py, app/api/batches.py, app/correlation/lote.py ---
+
+/**
+ * Ítem de POST /batches. Laxo a propósito: `tipo: null` (no reconocido) o un valor inválido
+ * no tumban el lote; el backend lo registra como `invalido` con su motivo.
+ */
+export interface ItemLote {
+  tipo: IndicatorTipo | null
+  valor: string
+}
+
+/** Body de POST /batches: de 2 a 20 ítems. */
+export interface BatchCreate {
+  nombre: string | null
+  indicadores: ItemLote[]
+}
+
+export type Ingesta = 'creado' | 'existente' | 'duplicado' | 'invalido' | 'eliminado'
+
+export interface BatchRead {
+  id: number
+  nombre: string | null
+  timestamp: string
+}
+
+/** Cada entrada pegada, en orden; `indicator_id` es null si se descartó o se eliminó. */
+export interface BatchItem {
+  posicion: number
+  entrada: string
+  tipo: string | null
+  ingesta: Ingesta
+  indicator_id: number | null
+  valor: string | null
+  motivo: string | null
+}
+
+export interface BatchCreated {
+  batch: BatchRead
+  items: BatchItem[]
+  resumen: { creados: number; existentes: number; duplicados: number; invalidos: number }
+}
+
+export type ConclusionLote = 'relacion_demostrable' | 'sin_relacion_demostrable'
+
+/** GET /batches. `decision`: la vigente del último informe (null = pendiente o sin informe). */
+export interface BatchSummary extends BatchRead {
+  indicadores: number
+  descartados: number
+  ultimo_informe: { id: number; conclusion: ConclusionLote; timestamp: string } | null
+  decision: string | null
+}
+
+/** Solo participan en vínculos los miembros con entidad resuelta. */
+export type EstadoMiembro = 'participa' | 'sin_entidad' | 'sin_correlacionar' | 'sin_enriquecer'
+
+export interface MiembroLote {
+  ref: string // I1, I2… en el orden del lote
+  indicator_id: number
+  tipo: string
+  valor: string
+  ingesta: Ingesta
+  estado: EstadoMiembro
+  entidad: EntityRef | null
+  asociacion: number | null
+  severidad: Severidad | null
+  confianza: ConfianzaInforme | null
+  contradicciones: Contradiccion[]
+  cobertura: 'completa' | 'parcial' | null
+  fuentes: Pick<FuenteEnriquecimiento, 'fuente' | 'etiqueta' | 'estado'>[]
+}
+
+export interface SenalLote {
+  tipo: 'pulse_compartido' | 'infraestructura' | 'misma_entidad'
+  fuerza: 'fuerte' | 'contextual'
+  origen: 'alienvault_otx' | 'estructura' | 'correlacion_nexo'
+  detalle: string
+  /** pulse_compartido: hasta 5 pulses. El nombre es texto libre de terceros. */
+  pulses?: { id: string; nombre: string | null; indicadores: number | null }[]
+  entity_id?: number
+}
+
+export type ConfianzaVinculo = 'alta' | 'media' | 'baja'
+
+export interface VinculoLote {
+  id: string // V1, V2…
+  a: string
+  b: string
+  confianza: ConfianzaVinculo
+  senales: SenalLote[]
+}
+
+export interface AgrupacionLote {
+  id: string // A1, A2…
+  indicadores: string[]
+  vinculos: string[]
+  confianza: 'alta' | 'media'
+  tecnicas_comunes: string[]
+}
+
+/** Correlación entre los indicadores del lote: determinística, calculada al vuelo en el GET. */
+export interface CorrelacionLote {
+  indicadores: MiembroLote[]
+  vinculos: VinculoLote[]
+  agrupaciones: AgrupacionLote[]
+  conclusion: {
+    nivel: ConclusionLote
+    texto: string
+    entidad_comun: string[]
+    aislados: string[]
+    no_participan: string[]
+  }
+  cobertura: {
+    nivel: 'completa' | 'parcial'
+    validos: number
+    participan: number
+    descartados: number
+    sin_entidad: string[]
+    sin_correlacionar: string[]
+    sin_enriquecer: string[]
+    fuentes: { fuente: string; etiqueta: string; verificados: string[]; sin_verificar: string[] }[]
+  }
+  /** Técnicas documentadas por táctica, en orden ATT&CK. Compartir técnicas NO es una señal. */
+  cadena_ataque: {
+    tactica: string
+    tecnicas: { id: string; nombre: string; indicadores: string[]; entidades: string[]; varias_entidades: boolean }[]
+  }[]
+}
+
+/** Una versión del informe conjunto (POST /batches/{id}/report). */
+export interface BatchReportRead {
+  id: number
+  batch_id: number
+  contenido: string
+  conclusion: ConclusionLote
+  metadatos: { correlacion: CorrelacionLote; descartados: Omit<BatchItem, 'tipo' | 'indicator_id' | 'valor'>[]; ia: RegistroIA } | null
+  timestamp: string
+}
+
+export interface BatchValidationRead {
+  id: number
+  batch_report_id: number
+  decision: string
+  analista: string | null
+  timestamp: string
+}
+
+/** GET /batches/{id}: las investigaciones tienen la forma de GET /indicators/{id}. */
+export interface BatchDetail {
+  batch: BatchRead
+  items: BatchItem[]
+  investigaciones: InvestigationSnapshot[]
+  correlacion: CorrelacionLote
+  informes: BatchReportRead[]
+  validaciones: BatchValidationRead[]
+}
+
+/** DELETE /batches/{id}: filas borradas por tabla. Los indicadores del lote no se borran. */
+export interface BatchDeleteResponse {
+  batch_id: number
+  nombre: string | null
+  eliminados: Record<string, number>
 }

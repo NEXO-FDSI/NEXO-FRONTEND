@@ -5,6 +5,11 @@
  * (backend docs/evolucion/fase-04-ia-estructurada.md).
  */
 import type {
+  BatchCreated,
+  BatchDetail,
+  BatchReportRead,
+  BatchSummary,
+  CorrelacionLote,
   CorrelationResponse,
   EnrichmentResponse,
   FuenteEnriquecimiento,
@@ -321,4 +326,153 @@ export const statusResponse: StatusResponse = {
     { fuente: 'virustotal', etiqueta: 'VirusTotal', configurada: false },
   ],
   ia: { proveedor: 'groq', modelo: 'qwen/qwen3.8-27b' },
+}
+
+// --- Lotes (Fase 7): forma de app/api/batches.py y app/correlation/lote.py ---
+
+export const loteRead = { id: 7, nombre: 'Triage de prueba', timestamp: '2026-10-10T14:02:11Z' }
+
+/** WannaCry ya registrado (reutilizado), 8.8.8.8 nuevo y una línea no reconocida. */
+export const batchCreated: BatchCreated = {
+  batch: loteRead,
+  items: [
+    { posicion: 1, entrada: WANNACRY_HASH.toUpperCase(), tipo: 'hash', ingesta: 'existente', indicator_id: 1, valor: WANNACRY_HASH, motivo: null },
+    { posicion: 2, entrada: '8[.]8[.]8[.]8', tipo: 'ip', ingesta: 'creado', indicator_id: 2, valor: '8.8.8.8', motivo: null },
+    { posicion: 3, entrada: 'no-es-un-ioc', tipo: null, ingesta: 'invalido', indicator_id: null, valor: null, motivo: 'tipo no reconocido' },
+  ],
+  resumen: { creados: 1, existentes: 1, duplicados: 0, invalidos: 1 },
+}
+
+const miembro = { contradicciones: [], cobertura: null, fuentes: [] }
+
+export const loteCorrelacion: CorrelacionLote = {
+  indicadores: [
+    {
+      ...miembro, ref: 'I1', indicator_id: 1, tipo: 'hash', valor: WANNACRY_HASH, ingesta: 'existente', estado: 'participa',
+      entidad: { id: 1, nombre: 'wannacry', tipo: 'malware' }, asociacion: 0.9,
+      severidad: { nivel: 'critica', motivos: [] }, confianza: { nivel: 'alta', motivos: [] },
+    },
+    {
+      ...miembro, ref: 'I2', indicator_id: 2, tipo: 'ip', valor: '8.8.8.8', ingesta: 'creado', estado: 'sin_entidad',
+      entidad: null, asociacion: null, severidad: { nivel: 'benigno', motivos: [] }, confianza: { nivel: 'sin_evidencia', motivos: [] },
+    },
+  ],
+  vinculos: [],
+  agrupaciones: [],
+  conclusion: {
+    nivel: 'sin_relacion_demostrable',
+    texto: 'Sin relación demostrable entre los indicadores. Menos de dos indicadores con entidad resuelta: no hay relaciones que evaluar.',
+    entidad_comun: [],
+    aislados: ['I1'],
+    no_participan: ['I2'],
+  },
+  cobertura: {
+    nivel: 'parcial', validos: 2, participan: 1, descartados: 1, sin_entidad: ['I2'], sin_correlacionar: [], sin_enriquecer: [],
+    fuentes: [],
+  },
+  cadena_ataque: [],
+}
+
+/** GET /batches/7 con los miembros recién registrados (sin enriquecer): la fusión es monotónica. */
+export function batchDetail(overrides: Partial<BatchDetail> = {}): BatchDetail {
+  return {
+    batch: loteRead,
+    items: batchCreated.items,
+    investigaciones: [wannacryIndicator, benignIndicator].map((indicator) => ({
+      indicator, enrichment: null, correlation: null, reports: [], validations: [],
+    })),
+    correlacion: loteCorrelacion,
+    informes: [],
+    validaciones: [],
+    ...overrides,
+  }
+}
+
+export const batchSummaries: BatchSummary[] = [
+  {
+    ...loteRead, indicadores: 2, descartados: 1,
+    ultimo_informe: { id: 4, conclusion: 'relacion_demostrable', timestamp: '2026-10-10T14:20:00Z' }, decision: 'aceptado',
+  },
+  { id: 6, nombre: null, timestamp: '2026-10-09T10:00:00Z', indicadores: 3, descartados: 0, ultimo_informe: null, decision: null },
+]
+
+/** Correlación con una relación demostrable entre I1 e I2, como la congela un informe conjunto. */
+export const loteCorrelacionRelacion: CorrelacionLote = {
+  ...loteCorrelacion,
+  indicadores: loteCorrelacion.indicadores.map((m) => ({
+    ...m, estado: 'participa' as const, entidad: { id: 1, nombre: 'wannacry', tipo: 'malware' }, asociacion: 0.9,
+    valor: m.ref === 'I2' ? 'http://evil.example/x' : m.valor,
+  })),
+  vinculos: [{
+    id: 'V1', a: 'I1', b: 'I2', confianza: 'media',
+    senales: [
+      {
+        tipo: 'pulse_compartido', fuerza: 'fuerte', origen: 'alienvault_otx',
+        detalle: '1 pulse(s) enfocado(s) de AlienVault OTX listan ambos indicadores',
+        pulses: [{ id: '5fd6df943558e0b56eaf3da8', nombre: 'WannaCry IOCs', indicadores: 50 }],
+      },
+      {
+        tipo: 'misma_entidad', fuerza: 'contextual', origen: 'correlacion_nexo',
+        detalle: 'ambos se asocian a wannacry (malware): I1 con 0.9 vía AlienVault OTX; I2 con 0.9 vía AlienVault OTX',
+        entity_id: 1,
+      },
+    ],
+  }],
+  agrupaciones: [{ id: 'A1', indicadores: ['I1', 'I2'], vinculos: ['V1'], confianza: 'media', tecnicas_comunes: ['T1210', 'T1486'] }],
+  conclusion: {
+    nivel: 'relacion_demostrable',
+    texto: 'Relación demostrable entre I1 y I2 (A1, confianza media). Comparten la entidad atribuida wannacry, lo que no prueba que pertenezcan a la misma campaña.',
+    entidad_comun: ['wannacry'], aislados: [], no_participan: [],
+  },
+  cobertura: { ...loteCorrelacion.cobertura, nivel: 'completa', participan: 2, sin_entidad: [] },
+  cadena_ataque: [
+    { tactica: 'Lateral Movement', tecnicas: [
+      { id: 'T1210', nombre: 'Exploitation of Remote Services', indicadores: ['I1', 'I2'], entidades: ['wannacry'], varias_entidades: false },
+    ] },
+    { tactica: 'Impact', tecnicas: [
+      { id: 'T1486', nombre: 'Data Encrypted for Impact', indicadores: ['I1', 'I2'], entidades: ['wannacry', 'emotet'], varias_entidades: true },
+    ] },
+  ],
+}
+
+export const loteReport: BatchReportRead = {
+  id: 4,
+  batch_id: 7,
+  conclusion: 'relacion_demostrable',
+  timestamp: '2026-10-10T14:20:03Z',
+  contenido: [
+    '# Informe conjunto — lote #7: Triage de prueba',
+    '',
+    '## 1. Conclusión',
+    '',
+    'Relación demostrable entre I1 y I2 (A1, confianza media).',
+    '',
+    '## 2. Indicadores',
+    '',
+    '| Ref | Indicador |',
+    '|---|---|',
+    `| I1 | \`${WANNACRY_HASH}\` |`,
+    '| I2 | `http://evil.example/x` |',
+  ].join('\n'),
+  metadatos: {
+    correlacion: loteCorrelacionRelacion,
+    descartados: [{ posicion: 3, entrada: 'no-es-un-ioc', ingesta: 'invalido', motivo: 'tipo no reconocido' }],
+    ia: {
+      ...wannacryMetadatos.ia,
+      analisis: {
+        resumen: 'NEXO halla una relación demostrable entre I1 e I2 por un pulse compartido.',
+        hallazgos: [{ afirmacion: 'I1 e I2 aparecen en el mismo pulse enfocado de OTX.', tipo: 'evidencia', fuentes: ['E-V1'] }],
+        tecnicas_destacadas: [],
+        investigacion_recomendada: [],
+        limitaciones: [],
+        informacion_faltante: [],
+      },
+      contexto: [
+        { id: 'E-LOTE', titulo: 'Conclusión determinística de NEXO', texto: 'Relación demostrable entre I1 y I2.' },
+        { id: 'E-I1', titulo: 'Indicador I1', texto: `hash ${WANNACRY_HASH}. Entidad wannacry (malware).` },
+        { id: 'E-V1', titulo: 'Vínculo V1', texto: 'Vínculo I1–I2, confianza media.' },
+      ],
+      seleccion: { metodo: 'solapamiento_y_tactica', consulta: null, motivo: null, puntajes: {} },
+    },
+  },
 }

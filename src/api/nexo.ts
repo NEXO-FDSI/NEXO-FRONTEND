@@ -1,5 +1,12 @@
 import { request } from './http'
 import type {
+  BatchCreate,
+  BatchCreated,
+  BatchDeleteResponse,
+  BatchDetail,
+  BatchReportRead,
+  BatchSummary,
+  BatchValidationRead,
   CorrelationResponse,
   DeleteResponse,
   EnrichmentResponse,
@@ -57,4 +64,22 @@ export const nexoApi = {
 
   validateReport: (reportId: number, payload: ValidationRequest) =>
     request<ValidationRead>('POST', `/reports/${reportId}/validate`, { body: payload }),
+
+  /** Registra o reutiliza cada indicador; un ítem inválido no aborta el lote. */
+  createBatch: (payload: BatchCreate) => request<BatchCreated>('POST', '/batches', { body: payload }),
+
+  listBatches: () => request<BatchSummary[]>('GET', '/batches'),
+
+  /** Ítems, investigación de cada miembro y correlación entre ellos (determinística). */
+  getBatch: (batchId: number) => request<BatchDetail>('GET', `/batches/${batchId}`),
+
+  /** Una versión nueva del informe conjunto: una sola llamada al LLM para todo el lote. */
+  createBatchReport: (batchId: number) =>
+    request<BatchReportRead>('POST', `/batches/${batchId}/report`, { timeoutMs: REPORT_TIMEOUT_MS }),
+
+  /** Irreversible: borra informes, validaciones y entradas del lote; sus indicadores no. */
+  deleteBatch: (batchId: number) => request<BatchDeleteResponse>('DELETE', `/batches/${batchId}`),
+
+  validateBatchReport: (reportId: number, payload: ValidationRequest) =>
+    request<BatchValidationRead>('POST', `/batch-reports/${reportId}/validate`, { body: payload }),
 }

@@ -28,13 +28,36 @@ const MARKDOWN_COMPONENTS: Components = {
   ),
 }
 
-function downloadMarkdown(report: ReportRead) {
-  const url = URL.createObjectURL(new Blob([report.contenido], { type: 'text/markdown;charset=utf-8' }))
+function downloadMarkdown(contenido: string, archivo: string) {
+  const url = URL.createObjectURL(new Blob([contenido], { type: 'text/markdown;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = `nexo-informe-${report.id}.md`
+  link.download = archivo
   link.click()
   URL.revokeObjectURL(url)
+}
+
+/** Copiar y descargar el Markdown. Lo comparten el informe de un indicador y el de un lote. */
+export function MarkdownActions({ contenido, archivo }: { contenido: string; archivo: string }) {
+  return (
+    <div className={styles.actions}>
+      <CopyButton text={contenido} label="Copiar informe en Markdown" />
+      <Button size="sm" icon={<Download size={14} aria-hidden="true" />} onClick={() => downloadMarkdown(contenido, archivo)}>
+        Descargar .md
+      </Button>
+    </div>
+  )
+}
+
+/** Informe en Markdown, renderizado sin HTML crudo (sin rehype-raw ni dangerouslySetInnerHTML). */
+export function MarkdownReport({ contenido }: { contenido: string }) {
+  return (
+    <article className={styles.markdown}>
+      <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+        {contenido}
+      </Markdown>
+    </article>
+  )
 }
 
 function ReportProgress({ seconds }: { seconds: number }) {
@@ -111,19 +134,10 @@ export function ReportPanel({ inv, activity, onRun, report, onSelectReport }: Re
           )}
           <Badge tone={STATUS_TONE[decision ?? 'pendiente']}>{STATUS_LABEL[decision ?? 'pendiente']}</Badge>
         </div>
-        <div className={styles.actions}>
-          <CopyButton text={report.contenido} label="Copiar informe en Markdown" />
-          <Button size="sm" icon={<Download size={14} aria-hidden="true" />} onClick={() => downloadMarkdown(report)}>
-            Descargar .md
-          </Button>
-        </div>
+        <MarkdownActions contenido={report.contenido} archivo={`nexo-informe-${report.id}.md`} />
       </div>
 
-      <article className={styles.markdown}>
-        <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
-          {report.contenido}
-        </Markdown>
-      </article>
+      <MarkdownReport contenido={report.contenido} />
     </div>
   )
 }

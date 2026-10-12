@@ -1,6 +1,6 @@
 import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import type { RegistroIA, ReportRead } from '../../api/types'
+import type { RegistroIA, ReportRead, SeleccionTecnicas } from '../../api/types'
 import { HALLAZGO_LABEL } from '../../domain/severity'
 import { Alert } from '../ui/Alert'
 import { EmptyState } from '../ui/EmptyState'
@@ -83,8 +83,6 @@ interface AiAnalysisPanelProps extends CasePanelProps {
 }
 
 export function AiAnalysisPanel({ report, ...props }: AiAnalysisPanelProps) {
-  const [activo, setActivo] = useState<string | null>(null)
-
   if (!report) {
     return (
       <StepPrompt {...props} step="report" icon={<Sparkles />} title="Sin análisis todavía">
@@ -105,6 +103,22 @@ export function AiAnalysisPanel({ report, ...props }: AiAnalysisPanelProps) {
       </Alert>
     )
   }
+  return <AnalisisIAView ia={ia} />
+}
+
+const SELECCION: Record<SeleccionTecnicas['metodo'], (motivo: string | null) => string> = {
+  semantica: () => 'Técnicas de la entidad ordenadas por afinidad semántica (embeddings) con la evidencia del indicador.',
+  por_tactica: (motivo) => `Técnicas de la entidad repartidas por táctica: ${motivo ?? 'sin afinidad semántica'}.`,
+  solapamiento_y_tactica: () =>
+    'Técnicas del lote: primero las documentadas para varias entidades, luego repartidas por táctica.',
+}
+
+/**
+ * Lo que redactó el modelo, con sus citas y el contexto exacto que recibió. Lo comparten el
+ * informe de un indicador y el informe conjunto de un lote.
+ */
+export function AnalisisIAView({ ia }: { ia: RegistroIA }) {
+  const [activo, setActivo] = useState<string | null>(null)
   if (ia.estado !== 'generado' || !ia.analisis) return <NoAnalysis ia={ia} />
 
   const { analisis } = ia
@@ -160,13 +174,7 @@ export function AiAnalysisPanel({ report, ...props }: AiAnalysisPanelProps) {
         <section className={styles.context} aria-label="Contexto enviado al modelo">
           <h4 className={styles.heading}>Contexto enviado al modelo</h4>
           <p className={styles.hint}>Es todo lo que el modelo pudo leer. Elige una cita para ver de dónde sale.</p>
-          {ia.seleccion && (
-            <p className={styles.hint}>
-              {ia.seleccion.metodo === 'semantica'
-                ? 'Técnicas de la entidad ordenadas por afinidad semántica (embeddings) con la evidencia del indicador.'
-                : `Técnicas de la entidad repartidas por táctica: ${ia.seleccion.motivo ?? 'sin afinidad semántica'}.`}
-            </p>
-          )}
+          {ia.seleccion && <p className={styles.hint}>{SELECCION[ia.seleccion.metodo](ia.seleccion.motivo)}</p>}
           <ol className={styles.blocks}>
             {ia.contexto.map((b) => (
               <li
